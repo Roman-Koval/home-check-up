@@ -6,14 +6,14 @@
 
 // ── 1. PASTE YOUR FIREBASE CONFIG HERE ──────────────────────
 const firebaseConfig = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  databaseURL:       "https://YOUR_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId:         "YOUR_PROJECT",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
-};
+    apiKey: "AIzaSyBzfmFdgO_IxZSlcTS7i8U0cktwwkQAUwM",
+    authDomain: "cyprusguard-902a2.firebaseapp.com",
+    databaseURL: "https://cyprusguard-902a2-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "cyprusguard-902a2",
+    storageBucket: "cyprusguard-902a2.firebasestorage.app",
+    messagingSenderId: "705984427821",
+    appId: "1:705984427821:web:db66a32626d25e6abb45a4"
+  };
 
 // ── 2. SDK IMPORTS (loaded via CDN in HTML) ──────────────────
 //  index.html already imports the compat SDKs, so we just
