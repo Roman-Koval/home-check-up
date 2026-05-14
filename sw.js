@@ -1,18 +1,105 @@
-const CACHE = 'cyprusguard-v1';
-const ASSETS = ['/', '/index.html', '/style.css', '/app.js', '/manifest.json'];
+// ================================================================
+//  sw.js  —  CyprusGuard Service Worker
+//  Strategy:
+//    - App shell (HTML/CSS/JS/fonts) → Cache First
+//    - Firebase API calls           → Network Only
+//    - Images (Firebase Storage)    → Cache with Network fallback
+// ================================================================
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-  self.skipWaiting();
-});
+const CACHE_NAME = 'cyprusguard-v2';
+const OFFLINE_URL = '/offline.html';
 
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))));
-  self.clients.claim();
-});
+const SHELL_ASSETS = [
+  './',
+  './index.html',
+  './client.html',
+  './style.css',
+  './admin.css',
+  './client.css',
+  './admin.js',
+  './client.js',
+  './firebase-config.js',
+  './manifest.json',
+  './manifest-client.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+];
 
-self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => cached))
+// ── INSTALL ──────────────────────────────────────────────────
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      // Cache what we can, silently skip missing files
+      return Promise.allSettled(
+        SHELL_ASSETS.map(url => cache.add(url).catch(() => null))
+      );
+    }).then(() => self.skipWaiting())
   );
 });
+
+// ── ACTIVATE ─────────────────────────────────────────────────
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+// ── FETCH ────────────────────────────────────────────────────
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
+
+  // Firebase / API calls → Network Only (no caching)
+  if (
+    url.hostname.includes('firebaseio.com') ||
+    url.hostname.includes('googleapis.com') ||
+    url.hostname.includes('firebaseapp.com') ||
+    url.hostname.includes('api.telegram.org') ||
+    url.hostname.includes('firebasestorage.googleapis.com')
+  ) {
+    return; // Let browser handle normally
+  }
+
+  // Google Fonts → Cache First
+  if (url.hostname.includes('fonts.g')) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
+
+  // Firebase CDN (SDKs) → Cache First
+  if (url.hostname.includes('gstatic.com')) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
+
+  // App shell → Cache First with Network fallback
+  event.respondWith(cacheFirst(event.request));
+});
+
+// ── STRATEGIES ───────────────────────────────────────────────
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    // Offline fallback for navigation
+    if (request.mode === 'navigate') {
+      return new Response(
+        `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Оффлайн</title><style>body{background:#070f1e;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;flex-direction:column;gap:16px}</style></head><body><div style="font-size:48px">🏛️</div><div style="font-size:22px">CyprusGuard</div><div style="color:#888;font-size:14px">Нет подключения к интернету</div><button onclick="location.reload()" style="background:#c9a84c;color:#000;border:none;padding:10px 24px;border-radius:20px;cursor:pointer;font-size:14px;margin-top:8px">Обновить</button></body></html>`,
+        { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+      );
+    }
+    return new Response('Offline', { status: 503 });
+  }
+}

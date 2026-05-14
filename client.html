@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#070f1e"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="Мой объект"/>
+  <title>CyprusGuard — Мой объект</title>
+  <link rel="manifest" href="manifest-client.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="client.css"/>
+</head>
+<body>
+
+<div id="splash" class="splash">
+  <div class="splash-logo">
+    <div class="splash-icon">🏛️</div>
+    <div class="splash-name">CyprusGuard</div>
+    <div class="splash-tagline">Ваш личный кабинет</div>
+  </div>
+  <div class="splash-progress"><div class="splash-bar"></div></div>
+</div>
+
+<div id="accessDenied" class="access-denied hidden">
+  <div class="access-card">
+    <div style="font-size:48px">🔒</div>
+    <div class="access-title">Доступ закрыт</div>
+    <div class="access-desc">Ссылка недействительна или истекла. Обратитесь в агентство CyprusGuard.</div>
+    <a href="tel:+35799123456" class="btn-primary" style="text-decoration:none;text-align:center">📞 Позвонить</a>
+  </div>
+</div>
+
+<div id="clientApp" class="client-app hidden">
+
+  <!-- HEADER -->
+  <header class="client-header">
+    <div class="client-brand">
+      <span style="font-size:22px">🏛️</span>
+      <div>
+        <div class="client-brand-name">CyprusGuard</div>
+        <div class="client-brand-sub">Личный кабинет</div>
+      </div>
+    </div>
+    <div class="client-user">
+      <div class="client-avatar" id="clientAvatar">?</div>
+      <div class="client-name-header" id="clientNameHeader">—</div>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <nav class="client-tabs">
+    <button class="client-tab active" data-tab="overview">🏠 Обзор</button>
+    <button class="client-tab" data-tab="reports">📋 Отчёты</button>
+    <button class="client-tab" data-tab="request">📬 Заявка</button>
+    <button class="client-tab" data-tab="info">ℹ️ Контакты</button>
+  </nav>
+
+  <div class="client-pages">
+
+    <!-- OVERVIEW -->
+    <div class="client-page active" id="ctab-overview">
+      <div class="client-hero">
+        <div class="client-hero-icon" id="clientPropIcon">🏠</div>
+        <div>
+          <div class="client-prop-address" id="clientPropAddress">—</div>
+          <div class="client-prop-meta" id="clientPropMeta">—</div>
+        </div>
+      </div>
+
+      <div class="client-status-card" id="clientStatusCard">
+        <div class="client-status-dot" id="clientStatusDot"></div>
+        <div>
+          <div class="client-status-text" id="clientStatusText">—</div>
+          <div class="client-status-sub" id="clientStatusSub">—</div>
+        </div>
+      </div>
+
+      <div class="client-kpi-row">
+        <div class="client-kpi"><div class="client-kpi-val" id="ckpiVisits">—</div><div class="client-kpi-label">Визитов всего</div></div>
+        <div class="client-kpi"><div class="client-kpi-val" id="ckpiReports">—</div><div class="client-kpi-label">Отчётов</div></div>
+        <div class="client-kpi"><div class="client-kpi-val" id="ckpiNext">—</div><div class="client-kpi-label">Следующий визит</div></div>
+      </div>
+
+      <div class="client-section-title">Последние отчёты</div>
+      <div id="clientRecentReports" class="client-reports-list"></div>
+
+      <div class="client-section-title">История визитов</div>
+      <div id="clientVisitHistory" class="client-visits-list"></div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="client-page" id="ctab-reports">
+      <div id="clientAllReports" class="client-reports-list"></div>
+    </div>
+
+    <!-- REQUEST -->
+    <div class="client-page" id="ctab-request">
+      <div class="request-hero">
+        <div style="font-size:40px">📬</div>
+        <div class="request-hero-title">Отправить заявку</div>
+        <div class="request-hero-desc">Опишите проблему или пожелание — мы ответим в течение 24 часов</div>
+      </div>
+
+      <div class="client-form">
+        <label class="form-label">Тип заявки</label>
+        <div class="req-type-grid">
+          <button class="req-type-btn active" data-type="maintenance">🔧 Ремонт</button>
+          <button class="req-type-btn" data-type="visit">📅 Доп. визит</button>
+          <button class="req-type-btn" data-type="urgent">🚨 Срочно</button>
+          <button class="req-type-btn" data-type="other">📝 Другое</button>
+        </div>
+
+        <label class="form-label">Заголовок</label>
+        <input type="text" class="form-input client-input" id="reqTitle" placeholder="Кратко опишите проблему…" maxlength="80"/>
+
+        <label class="form-label">Подробное описание</label>
+        <textarea class="form-input client-input" id="reqDesc" rows="4" placeholder="Что случилось? Где именно? Как давно?…"></textarea>
+
+        <label class="form-label">Приоритет</label>
+        <select class="form-input client-input" id="reqPriority">
+          <option value="normal">Обычный — в плановом порядке</option>
+          <option value="high">Высокий — в течение недели</option>
+          <option value="urgent">Срочный — как можно скорее</option>
+        </select>
+
+        <label class="form-label">Фото (необязательно)</label>
+        <div class="client-photo-upload" onclick="document.getElementById('reqPhotoInput').click()">
+          <span style="font-size:24px">📷</span>
+          <span style="font-size:13px;color:var(--text2)">Прикрепить фото</span>
+          <input type="file" id="reqPhotoInput" accept="image/*" multiple style="display:none" onchange="handleReqPhotos(this)"/>
+        </div>
+        <div class="photo-preview-grid" id="reqPhotoPreview"></div>
+
+        <div class="req-send-wrap">
+          <button class="btn-primary req-send-btn" id="sendReqBtn">📤 Отправить заявку</button>
+        </div>
+      </div>
+
+      <div class="client-section-title">Мои заявки</div>
+      <div id="clientMyRequests" class="requests-list"></div>
+    </div>
+
+    <!-- INFO -->
+    <div class="client-page" id="ctab-info">
+      <div class="info-card">
+        <div style="font-size:48px;text-align:center;margin-bottom:16px">🏛️</div>
+        <div class="info-title">CyprusGuard Agency</div>
+        <div class="info-desc">Профессиональный уход за вашей недвижимостью на Кипре</div>
+        <div class="info-contacts">
+          <a href="tel:+35799123456" class="info-contact-btn">📞 +357 99 123 456</a>
+          <a href="mailto:info@cyprusguard.com" class="info-contact-btn">✉️ info@cyprusguard.com</a>
+          <a href="https://t.me/CyprusGuardBot" target="_blank" class="info-contact-btn">✈ Telegram Bot</a>
+        </div>
+        <div class="tariff-info" id="clientTariffInfo"></div>
+      </div>
+      <div class="pwa-banner" id="pwaBanner" style="display:none">
+        <div style="font-size:32px">📲</div>
+        <div><div style="font-weight:500;font-size:14px">Установить приложение</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Быстрый доступ с экрана телефона</div></div>
+        <button class="btn-primary" id="clientInstallBtn" style="padding:8px 16px;font-size:13px">Установить</button>
+      </div>
+    </div>
+
+  </div><!-- /client-pages -->
+</div><!-- /clientApp -->
+
+<!-- REPORT DETAIL MODAL -->
+<div class="modal-backdrop" id="clientReportModal">
+  <div class="modal modal-large">
+    <div class="modal-header"><div class="modal-title" id="clientReportTitle">Отчёт</div><button class="modal-close" data-modal="clientReportModal">✕</button></div>
+    <div class="modal-body" id="clientReportBody"></div>
+    <div class="modal-footer"><button class="btn-secondary" data-modal="clientReportModal">Закрыть</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="firebase-config.js"></script>
+<script src="client.js"></script>
+</body>
+</html>

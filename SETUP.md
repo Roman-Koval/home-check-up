@@ -1,0 +1,203 @@
+# 🏛️ CyprusGuard — Инструкция по настройке
+
+## Структура проекта
+
+```
+cypress-home-checkup/
+├── index.html          ← Админ-панель (PWA)
+├── client.html         ← Клиентский портал (PWA)
+├── style.css           ← Общие стили
+├── admin.css           ← Стили админки
+├── admin.js            ← Логика админки
+├── client.css          ← Стили клиента
+├── client.js           ← Логика клиента
+├── firebase-config.js  ← ⚠️ СЮДА вставить конфиг Firebase
+├── sw.js               ← Service Worker (офлайн PWA)
+├── manifest.json       ← PWA манифест (админ)
+├── manifest-client.json← PWA манифест (клиент)
+├── icons/              ← Иконки приложения
+│   ├── icon-192.png
+│   └── icon-512.png
+└── bot/
+    ├── index.js        ← Telegram бот
+    ├── package.json
+    └── README.md       ← Инструкция по деплою бота
+```
+
+---
+
+## Шаг 1 — Создать Firebase проект
+
+1. Перейдите на [console.firebase.google.com](https://console.firebase.google.com)
+2. **Add project** → введите название (напр. `cyprusguard`)
+3. Google Analytics → можно отключить → **Create project**
+
+---
+
+## Шаг 2 — Включить Realtime Database
+
+1. В левом меню: **Build → Realtime Database**
+2. **Create database** → выберите регион **Europe (belgium)** → **Start in test mode**
+3. Скопируйте URL базы данных: `https://cyprusguard-default-rtdb.europe-west1.firebasedatabase.app`
+
+**Правила безопасности** (вставьте в Rules):
+```json
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "clients": {
+      ".read": true,
+      ".indexOn": ["accessToken", "tgChatId", "tg"]
+    }
+  }
+}
+```
+
+---
+
+## Шаг 3 — Включить Authentication
+
+1. **Build → Authentication → Get started**
+2. Вкладка **Sign-in method** → включите **Email/Password**
+3. Вкладка **Users → Add user**:
+   - Email: `admin@cyprusguard.com`
+   - Password: придумайте надёжный пароль
+
+---
+
+## Шаг 4 — Включить Storage
+
+1. **Build → Storage → Get started** → **Start in test mode**
+2. Регион: `europe-west` → **Done**
+
+---
+
+## Шаг 5 — Вставить конфиг в firebase-config.js
+
+1. **Project Settings (⚙️) → General → Your apps → Add app → Web (</> )**
+2. Введите название (напр. `CyprusGuard Web`) → **Register app**
+3. Скопируйте объект `firebaseConfig`
+4. Откройте `firebase-config.js` и замените блок в начале файла:
+
+```javascript
+const firebaseConfig = {
+  apiKey:            "AIzaSy...",
+  authDomain:        "cyprusguard.firebaseapp.com",
+  databaseURL:       "https://cyprusguard-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "cyprusguard",
+  storageBucket:     "cyprusguard.appspot.com",
+  messagingSenderId: "123456789",
+  appId:             "1:123...:web:abc..."
+};
+```
+
+---
+
+## Шаг 6 — Задеплоить фронтенд
+
+### Вариант A: GitHub Pages (бесплатно, просто)
+
+1. Добавьте все файлы в GitHub репозиторий
+2. **Settings → Pages → Source: Deploy from branch → main → / (root)**
+3. Через 2-3 минуты сайт будет на: `https://username.github.io/repo-name/`
+
+### Вариант B: Netlify (рекомендуется — поддерживает PWA лучше)
+
+1. Зайдите на [netlify.com](https://netlify.com)
+2. **Add new site → Import from Git → GitHub**
+3. Выберите репозиторий → **Deploy site**
+4. Домен будет: `https://your-site.netlify.app`
+
+### Вариант C: Firebase Hosting (в комплекте с Firebase)
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase init hosting
+# Public directory: . (точка)
+# Single-page app: No
+firebase deploy
+```
+
+---
+
+## Шаг 7 — Первый запуск
+
+1. Откройте `index.html` (или ваш деплой)
+2. Войдите с email/паролем из Шага 3
+3. Откройте консоль браузера (F12) и выполните:
+   ```javascript
+   seedDemoData()
+   ```
+   Это создаст демо-данные (клиенты, объекты, настройки)
+4. Обновите страницу — данные появятся в интерфейсе
+
+---
+
+## Шаг 8 — Настройка Telegram бота
+
+1. Напишите [@BotFather](https://t.me/BotFather) в Telegram
+2. `/newbot` → введите имя → введите username (напр. `CyprusGuardBot`)
+3. Скопируйте токен
+4. В админке перейдите в раздел **Telegram Bot**
+5. Вставьте токен → **Сохранить**
+6. Задеплойте бота по инструкции в `bot/README.md`
+7. Напишите своему боту `/start` — он сохранит ваш admin chat_id
+
+---
+
+## Шаг 9 — Добавить клиента и выдать ссылку
+
+1. Перейдите в раздел **Клиенты → + Добавить**
+2. Заполните: имя, Telegram username, страна
+3. Нажмите **🔗 Портал** рядом с клиентом
+4. Скопируйте ссылку вида:
+   ```
+   https://your-site.netlify.app/client.html?token=tok-abc123
+   ```
+5. Отправьте клиенту — он сразу попадёт в личный кабинет без регистрации
+
+---
+
+## Шаг 10 — Установка как PWA
+
+**Для себя (администратор):**
+- Chrome Desktop: иконка ⊕ в адресной строке
+- Android Chrome: «Добавить на главный экран»
+- iOS Safari: Поделиться (□↑) → «На экран Домой»
+
+**Для клиента** (покажите/пришлите инструкцию):
+- Он открывает ссылку клиентского портала
+- Вкладка **ℹ️ Контакты** → кнопка «Установить приложение»
+- Или через браузер как описано выше
+
+---
+
+## Бюджет (всё бесплатно)
+
+| Сервис | Бесплатный лимит | Стоимость при превышении |
+|--------|-----------------|--------------------------|
+| Firebase Realtime DB | 1 ГБ хранилища, 10 ГБ/мес трафик | $5/ГБ |
+| Firebase Storage | 5 ГБ, 1 ГБ/день загрузок | $0.026/ГБ |
+| Firebase Auth | 10 000 аутентификаций/мес | Бесплатно |
+| Netlify Hosting | 100 ГБ трафика/мес | $19/мес |
+| Railway (бот) | 500 часов/мес | $5/мес |
+
+Для 10-15 клиентов всё бесплатно ~бессрочно.
+
+---
+
+## Часто задаваемые вопросы
+
+**Q: Клиент не видит свои данные**
+A: Убедитесь, что в разделе «Клиенты» указан правильный clientId у объектов
+
+**Q: Telegram бот не отвечает**
+A: Проверьте логи на Railway/Render и правильность переменных окружения
+
+**Q: Фото не загружаются**
+A: Убедитесь, что Storage включён и правила разрешают запись
+
+**Q: PWA не устанавливается на iOS**
+A: iOS требует HTTPS. Убедитесь, что сайт деплоен (не открывается как file://)
