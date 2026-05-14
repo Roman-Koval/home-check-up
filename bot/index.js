@@ -386,9 +386,13 @@ bot.on('photo', async (msg) => {
 
 // ── REALTIME LISTENERS ───────────────────────────────────────
 // Listen for new reports and push to client's Telegram
-db.ref('reports').on('child_added', async (snap) => {
+// Only listen to reports created AFTER bot startup — avoids flooding on restart
+const BOT_START_TIME = Date.now();
+db.ref('reports').orderByChild('createdAt').startAt(BOT_START_TIME).on('child_added', async (snap) => {
   const report = snap.val();
-  if (!report || report._notified) return;
+  if (!report || report._notified || report.tgSent) return;
+  // Extra guard: skip anything older than 5 min before startup
+  if (report.createdAt && report.createdAt < BOT_START_TIME - 300000) return;
 
   // Find property and client
   const prop   = await DB.get(`properties/${report.propId}`);
@@ -468,5 +472,20 @@ function formatDate(val) {
   const d = typeof val === 'number' ? new Date(val) : new Date(val);
   return d.toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' });
 }
+
+// Mark all existing reports as notified so they don't get re-sent on restart
+db.ref('reports').once('value').then(snap => {
+  const reports = snap.val();
+  if (!reports) return;
+  const updates = {};
+  Object.keys(reports).forEach(id => {
+    if (!reports[id]._notified) updates[`reports/${id}/_notified`] = true;
+  });
+  if (Object.keys(updates).length) {
+    db.ref().update(updates).then(() =>
+      console.log(`✅ Marked ${Object.keys(updates).length} existing reports as notified`)
+    );
+  }
+});
 
 console.log('🤖 CyprusGuard Telegram Bot started');
