@@ -1,20 +1,28 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0a1628" />
-  <meta name="description" content="Cyprus Home Check-up — профессиональный уход за вашей недвижимостью на Кипре" />
-  <title>CyprusGuard — Home Check-up</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#070f1e"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="CyprusGuard"/>
+  <meta name="description" content="CyprusGuard — Home Check-up Admin Panel"/>
+  <title>CyprusGuard Admin</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="admin.css"/>
 </head>
 <body>
 
-<!-- SPLASH SCREEN -->
 <div id="splash" class="splash">
   <div class="splash-logo">
     <div class="splash-icon">🏛️</div>
@@ -24,168 +32,110 @@
   <div class="splash-progress"><div class="splash-bar"></div></div>
 </div>
 
-<!-- APP SHELL -->
-<div id="app" class="app hidden">
+<div id="loginScreen" class="login-screen hidden">
+  <div class="login-card">
+    <div class="login-logo">🏛️</div>
+    <div class="login-title">CyprusGuard</div>
+    <div class="login-sub">Панель администратора</div>
+    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="loginEmail" placeholder="admin@cyprusguard.com" autocomplete="email"/></div>
+    <div class="form-group"><label class="form-label">Пароль</label><input type="password" class="form-input" id="loginPassword" placeholder="••••••••" autocomplete="current-password"/></div>
+    <div class="login-error hidden" id="loginError"></div>
+    <button class="btn-primary login-btn" id="loginBtn">Войти</button>
+    <div class="login-hint"><b>Demo:</b> введите данные из Firebase Console<br/><small>Authentication → Add User</small></div>
+  </div>
+</div>
 
-  <!-- SIDEBAR -->
+<div id="app" class="app hidden">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="brand">
-        <span class="brand-icon">🏛️</span>
-        <div>
-          <div class="brand-name">CyprusGuard</div>
-          <div class="brand-sub">Home Check-up</div>
-        </div>
-      </div>
+      <div class="brand"><span class="brand-icon">🏛️</span><div><div class="brand-name">CyprusGuard</div><div class="brand-sub">Admin Panel</div></div></div>
       <button class="sidebar-close" id="sidebarClose">✕</button>
     </div>
     <nav class="sidebar-nav">
-      <a href="#" class="nav-item active" data-page="dashboard">
-        <span class="nav-icon">◈</span> Дашборд
-      </a>
-      <a href="#" class="nav-item" data-page="properties">
-        <span class="nav-icon">⌂</span> Объекты
-      </a>
-      <a href="#" class="nav-item" data-page="visits">
-        <span class="nav-icon">✦</span> Визиты
-      </a>
-      <a href="#" class="nav-item" data-page="reports">
-        <span class="nav-icon">◉</span> Отчёты
-      </a>
-      <a href="#" class="nav-item" data-page="clients">
-        <span class="nav-icon">⊹</span> Клиенты
-      </a>
-      <a href="#" class="nav-item" data-page="telegram">
-        <span class="nav-icon">✈</span> Telegram Bot
-      </a>
-      <a href="#" class="nav-item" data-page="billing">
-        <span class="nav-icon">◎</span> Финансы
-      </a>
-      <a href="#" class="nav-item" data-page="settings">
-        <span class="nav-icon">⚙</span> Настройки
-      </a>
+      <a href="#" class="nav-item active" data-page="dashboard"><span class="nav-icon">◈</span>Дашборд</a>
+      <a href="#" class="nav-item" data-page="requests"><span class="nav-icon">📬</span>Заявки<span class="nav-badge" id="reqBadge" style="display:none">0</span></a>
+      <a href="#" class="nav-item" data-page="properties"><span class="nav-icon">⌂</span>Объекты</a>
+      <a href="#" class="nav-item" data-page="visits"><span class="nav-icon">✦</span>Визиты</a>
+      <a href="#" class="nav-item" data-page="reports"><span class="nav-icon">◉</span>Отчёты</a>
+      <a href="#" class="nav-item" data-page="clients"><span class="nav-icon">⊹</span>Клиенты</a>
+      <a href="#" class="nav-item" data-page="telegram"><span class="nav-icon">✈</span>Telegram Bot</a>
+      <a href="#" class="nav-item" data-page="billing"><span class="nav-icon">◎</span>Финансы</a>
+      <a href="#" class="nav-item" data-page="settings"><span class="nav-icon">⚙</span>Настройки</a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-card">
-        <div class="user-avatar">AG</div>
-        <div>
-          <div class="user-name">Агентство</div>
-          <div class="user-role">Администратор</div>
-        </div>
-        <div class="user-status"></div>
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div><div class="user-name" id="userEmail">—</div><div class="user-role">Администратор</div></div>
+        <button class="logout-btn" id="logoutBtn" title="Выйти">⏻</button>
       </div>
     </div>
   </aside>
 
-  <!-- OVERLAY -->
   <div class="overlay" id="overlay"></div>
 
-  <!-- MAIN -->
   <main class="main">
-    <!-- TOPBAR -->
     <header class="topbar">
       <button class="menu-btn" id="menuBtn">☰</button>
       <div class="topbar-title" id="pageTitle">Дашборд</div>
       <div class="topbar-actions">
-        <button class="icon-btn notify-btn" id="notifyBtn">
-          🔔 <span class="badge" id="notifyBadge">3</span>
-        </button>
+        <button class="icon-btn notify-btn" id="notifyBtn">🔔<span class="badge" id="notifyBadge" style="display:none">0</span></button>
         <button class="icon-btn" id="addBtn">＋</button>
       </div>
     </header>
 
-    <!-- PAGES -->
     <div class="pages">
 
-      <!-- DASHBOARD PAGE -->
+      <!-- DASHBOARD -->
       <section class="page active" id="page-dashboard">
         <div class="page-hero">
           <div class="hero-text">
-            <div class="hero-greeting">Доброе утро,</div>
+            <div class="hero-greeting" id="heroGreeting">Добрый день</div>
             <div class="hero-title">Обзор агентства</div>
             <div class="hero-date" id="heroDate"></div>
           </div>
-          <div class="hero-weather">
-            <div class="weather-icon">☀️</div>
-            <div class="weather-info">
-              <div class="weather-temp">28°C</div>
-              <div class="weather-loc">Лимассол, Кипр</div>
-            </div>
-          </div>
+          <div class="hero-badge"><div style="font-size:36px">☀️</div><div><div style="font-size:22px;font-weight:300">28°C</div><div style="font-size:11px;color:var(--text3)">Лимассол</div></div></div>
         </div>
-
         <div class="kpi-grid">
-          <div class="kpi-card kpi-primary">
-            <div class="kpi-label">Активных объектов</div>
-            <div class="kpi-value" data-target="14">0</div>
-            <div class="kpi-change positive">+2 этот месяц</div>
-            <div class="kpi-sparkline">
-              <svg viewBox="0 0 80 30" preserveAspectRatio="none">
-                <polyline points="0,25 10,20 20,22 30,15 40,18 50,10 60,12 70,8 80,5" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Доход / месяц</div>
-            <div class="kpi-value">€<span data-target="1250">0</span></div>
-            <div class="kpi-change positive">↑ 18%</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Визитов в этом месяце</div>
-            <div class="kpi-value" data-target="28">0</div>
-            <div class="kpi-change">запланировано 6</div>
-          </div>
-          <div class="kpi-card kpi-alert">
-            <div class="kpi-label">Требуют внимания</div>
-            <div class="kpi-value" data-target="2">0</div>
-            <div class="kpi-change negative">⚠ Проверить</div>
-          </div>
+          <div class="kpi-card kpi-primary"><div class="kpi-label">Объектов</div><div class="kpi-value" id="kpiProps">—</div><div class="kpi-change positive" id="kpiPropsC"></div></div>
+          <div class="kpi-card"><div class="kpi-label">Доход/месяц</div><div class="kpi-value" id="kpiRev">—</div><div class="kpi-change positive"></div></div>
+          <div class="kpi-card"><div class="kpi-label">Визитов</div><div class="kpi-value" id="kpiVis">—</div><div class="kpi-change" id="kpiVisC"></div></div>
+          <div class="kpi-card kpi-alert"><div class="kpi-label">Заявок</div><div class="kpi-value" id="kpiReq">—</div><div class="kpi-change negative">ожидают ответа</div></div>
         </div>
-
         <div class="section-title">Ближайшие визиты</div>
-        <div class="visits-list" id="upcomingVisits"></div>
-
-        <div class="section-title">Последние отчёты</div>
-        <div class="reports-list" id="recentReports"></div>
-
-        <div class="section-title">Статус объектов</div>
-        <div class="status-chart">
-          <div class="donut-wrap">
-            <svg class="donut" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
-              <circle cx="50" cy="50" r="38" fill="none" stroke="#4fc3a1" stroke-width="12" stroke-dasharray="168 71" stroke-dashoffset="-60" class="donut-seg1"/>
-              <circle cx="50" cy="50" r="38" fill="none" stroke="#f0a500" stroke-width="12" stroke-dasharray="30 209" stroke-dashoffset="-228" class="donut-seg2"/>
-              <circle cx="50" cy="50" r="38" fill="none" stroke="#e05c5c" stroke-width="12" stroke-dasharray="10 229" stroke-dashoffset="-258" class="donut-seg3"/>
-              <text x="50" y="47" text-anchor="middle" class="donut-center-val">14</text>
-              <text x="50" y="57" text-anchor="middle" class="donut-center-label">объектов</text>
-            </svg>
-          </div>
-          <div class="donut-legend">
-            <div class="legend-item"><span class="legend-dot" style="background:#4fc3a1"></span> Норма — 10</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#f0a500"></span> Требует визита — 2</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#e05c5c"></span> Проблема — 2</div>
-          </div>
-        </div>
+        <div id="dashVisits" class="visits-list"></div>
+        <div class="section-title">Новые заявки</div>
+        <div id="dashRequests" class="requests-list"></div>
       </section>
 
-      <!-- PROPERTIES PAGE -->
+      <!-- REQUESTS -->
+      <section class="page" id="page-requests">
+        <div class="page-toolbar">
+          <div class="filter-chips">
+            <button class="chip active" data-req-filter="new">Новые</button>
+            <button class="chip" data-req-filter="inprogress">В работе</button>
+            <button class="chip" data-req-filter="done">Выполнены</button>
+            <button class="chip" data-req-filter="all">Все</button>
+          </div>
+        </div>
+        <div id="requestsList" class="requests-list"></div>
+      </section>
+
+      <!-- PROPERTIES -->
       <section class="page" id="page-properties">
         <div class="page-toolbar">
-          <div class="search-box">
-            <span>🔍</span>
-            <input type="text" placeholder="Поиск объектов..." id="propSearch" />
-          </div>
+          <div class="search-box"><span>🔍</span><input type="text" placeholder="Поиск…" id="propSearch"/></div>
           <div class="filter-chips">
-            <button class="chip active" data-filter="all">Все</button>
-            <button class="chip" data-filter="ok">Норма</button>
-            <button class="chip" data-filter="warning">Внимание</button>
-            <button class="chip" data-filter="issue">Проблема</button>
+            <button class="chip active" data-prop-filter="all">Все</button>
+            <button class="chip" data-prop-filter="ok">Норма</button>
+            <button class="chip" data-prop-filter="warning">Внимание</button>
+            <button class="chip" data-prop-filter="issue">Проблема</button>
           </div>
         </div>
         <div class="properties-grid" id="propertiesGrid"></div>
+        <div class="empty-state hidden" id="propEmpty"><div style="font-size:48px">🏠</div><div>Нет объектов</div><button class="btn-primary" onclick="openModal('addPropertyModal')">+ Добавить</button></div>
       </section>
 
-      <!-- VISITS PAGE -->
+      <!-- VISITS -->
       <section class="page" id="page-visits">
         <div class="calendar-header">
           <button class="cal-nav" id="calPrev">‹</button>
@@ -193,317 +143,257 @@
           <button class="cal-nav" id="calNext">›</button>
         </div>
         <div class="calendar-grid" id="calendarGrid"></div>
-        <div class="section-title">Визиты этого месяца</div>
-        <div class="visits-detailed" id="visitsDetailed"></div>
+        <div class="section-title">Визиты</div>
+        <div id="visitsDetailed" class="visits-list"></div>
       </section>
 
-      <!-- REPORTS PAGE -->
+      <!-- REPORTS -->
       <section class="page" id="page-reports">
         <div class="page-toolbar">
-          <div class="search-box">
-            <span>🔍</span>
-            <input type="text" placeholder="Поиск отчётов..." />
-          </div>
+          <div class="search-box"><span>🔍</span><input type="text" placeholder="Поиск…" id="reportSearch"/></div>
+          <button class="btn-primary" onclick="openModal('createReportModal')" style="flex-shrink:0">+ Создать отчёт</button>
         </div>
-        <div class="reports-grid" id="reportsGrid"></div>
+        <div id="reportsGrid" class="reports-grid"></div>
       </section>
 
-      <!-- CLIENTS PAGE -->
+      <!-- CLIENTS -->
       <section class="page" id="page-clients">
-        <div class="clients-list" id="clientsList"></div>
+        <div id="clientsList" class="clients-list"></div>
       </section>
 
-      <!-- TELEGRAM PAGE -->
+      <!-- TELEGRAM -->
       <section class="page" id="page-telegram">
-        <div class="tg-hero">
-          <div class="tg-icon">✈</div>
-          <div class="tg-title">Telegram Bot</div>
-          <div class="tg-desc">Автоматические отчёты владельцам прямо в Telegram</div>
-        </div>
-
-        <div class="tg-status-card" id="tgStatusCard">
+        <div class="tg-hero"><div class="tg-icon">✈</div><div class="tg-title">Telegram Bot</div><div class="tg-desc">Отчёты, заявки и уведомления прямо в Telegram</div></div>
+        <div class="tg-status-card">
           <div class="tg-status-dot" id="tgDot"></div>
-          <div>
-            <div class="tg-status-label" id="tgStatusLabel">Бот не подключён</div>
-            <div class="tg-status-sub" id="tgStatusSub">Введите токен для активации</div>
-          </div>
+          <div style="flex:1"><div class="tg-status-label" id="tgStatusLabel">Не подключён</div><div class="tg-status-sub" id="tgStatusSub">Введите токен</div></div>
           <button class="tg-toggle-btn" id="tgToggle">Подключить</button>
         </div>
-
         <div class="settings-group">
           <div class="settings-label">Токен бота</div>
-          <div class="input-row">
-            <input type="password" class="settings-input" id="tgToken" placeholder="1234567890:AAF..." />
-            <button class="btn-secondary" id="tgSaveToken">Сохранить</button>
-          </div>
+          <div class="input-row"><input type="password" class="settings-input" id="tgToken" placeholder="1234567890:AAF…"/><button class="btn-secondary" id="tgSaveToken">Сохранить</button></div>
+          <div style="margin-top:8px;font-size:12px;color:var(--text3)">@BotFather → /newbot → скопируйте токен</div>
         </div>
-
         <div class="settings-group">
-          <div class="settings-label">Автоматические уведомления</div>
+          <div class="settings-label">Автоуведомления</div>
           <div class="toggle-list">
-            <div class="toggle-item">
-              <div>
-                <div class="toggle-name">После каждого визита</div>
-                <div class="toggle-desc">Отправлять отчёт сразу после завершения</div>
-              </div>
-              <label class="toggle"><input type="checkbox" checked /><span></span></label>
-            </div>
-            <div class="toggle-item">
-              <div>
-                <div class="toggle-name">Фото-отчёт</div>
-                <div class="toggle-desc">Прикреплять фотографии к сообщению</div>
-              </div>
-              <label class="toggle"><input type="checkbox" checked /><span></span></label>
-            </div>
-            <div class="toggle-item">
-              <div>
-                <div class="toggle-name">Видео-отчёт</div>
-                <div class="toggle-desc">Прикреплять короткое видео (до 50 МБ)</div>
-              </div>
-              <label class="toggle"><input type="checkbox" /><span></span></label>
-            </div>
-            <div class="toggle-item">
-              <div>
-                <div class="toggle-name">Напоминание о визите</div>
-                <div class="toggle-desc">За 24 часа до запланированного визита</div>
-              </div>
-              <label class="toggle"><input type="checkbox" checked /><span></span></label>
-            </div>
-            <div class="toggle-item">
-              <div>
-                <div class="toggle-name">Экстренные уведомления</div>
-                <div class="toggle-desc">При обнаружении проблем (протечка, плесень)</div>
-              </div>
-              <label class="toggle"><input type="checkbox" checked /><span></span></label>
-            </div>
+            <div class="toggle-item"><div><div class="toggle-name">После визита — владельцу</div></div><label class="toggle"><input type="checkbox" id="tgNotifyVisit" checked/><span></span></label></div>
+            <div class="toggle-item"><div><div class="toggle-name">Новая заявка — администратору</div></div><label class="toggle"><input type="checkbox" id="tgNotifyRequest" checked/><span></span></label></div>
+            <div class="toggle-item"><div><div class="toggle-name">Напоминание за 24ч</div></div><label class="toggle"><input type="checkbox" id="tgNotifyReminder" checked/><span></span></label></div>
+            <div class="toggle-item"><div><div class="toggle-name">Экстренные проблемы</div></div><label class="toggle"><input type="checkbox" id="tgNotifyUrgent" checked/><span></span></label></div>
           </div>
+          <button class="btn-primary" id="saveTgBtn" style="width:100%;margin-top:12px">💾 Сохранить</button>
         </div>
-
         <div class="settings-group">
-          <div class="settings-label">Тест уведомления</div>
-          <div class="tg-test-area">
-            <select class="settings-input" id="tgTestClient">
-              <option>Выберите клиента...</option>
-              <option>Иванов — Limassol, Germasogeia</option>
-              <option>Müller — Paphos, Coral Bay</option>
-              <option>Schmidt — Nicosia, Old Town</option>
-            </select>
-            <button class="btn-primary" id="tgTestSend">📤 Отправить тест</button>
-          </div>
+          <div class="settings-label">Тест</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><select class="settings-input" id="tgTestClient" style="flex:1"></select><button class="btn-primary" id="tgTestSend">📤 Тест</button></div>
         </div>
-
-        <div class="tg-log">
-          <div class="settings-label">Лог активности</div>
-          <div class="log-entries" id="tgLog">
-            <div class="log-entry"><span class="log-time">14:32</span><span class="log-msg success">✓ Отчёт отправлен → Иванов (Limassol)</span></div>
-            <div class="log-entry"><span class="log-time">11:15</span><span class="log-msg success">✓ Отчёт отправлен → Schmidt (Nicosia)</span></div>
-            <div class="log-entry"><span class="log-time">09:00</span><span class="log-msg info">ℹ Напоминание отправлено → Müller (Paphos)</span></div>
-            <div class="log-entry"><span class="log-time">Вчера</span><span class="log-msg error">✗ Ошибка отправки → Petrov (Larnaca)</span></div>
+        <div class="settings-group">
+          <div class="settings-label">Лог</div>
+          <div class="log-entries" id="tgLog"><div class="log-entry"><span class="log-time">—</span><span class="log-msg info">Ожидание…</span></div></div>
+        </div>
+        <div class="tg-guide">
+          <div class="settings-label">Как развернуть бота</div>
+          <div class="guide-steps">
+            <div class="guide-step"><span class="guide-num">1</span><div><b>Создайте бота</b> — @BotFather → /newbot</div></div>
+            <div class="guide-step"><span class="guide-num">2</span><div><b>Вставьте токен</b> выше и сохраните в Firebase</div></div>
+            <div class="guide-step"><span class="guide-num">3</span><div><b>Задеплойте</b> <code>bot/index.js</code> на Railway/Render (бесплатно, инструкция в <code>bot/README.md</code>)</div></div>
+            <div class="guide-step"><span class="guide-num">4</span><div><b>Клиент пишет</b> /start — бот записывает chat_id автоматически</div></div>
           </div>
         </div>
       </section>
 
-      <!-- BILLING PAGE -->
+      <!-- BILLING -->
       <section class="page" id="page-billing">
         <div class="kpi-grid">
-          <div class="kpi-card kpi-primary">
-            <div class="kpi-label">Доход (май)</div>
-            <div class="kpi-value">€1,250</div>
-            <div class="kpi-change positive">↑ 18% к апрелю</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Ожидается</div>
-            <div class="kpi-value">€350</div>
-            <div class="kpi-change">4 счёта</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Просрочено</div>
-            <div class="kpi-value">€100</div>
-            <div class="kpi-change negative">1 клиент</div>
-          </div>
+          <div class="kpi-card kpi-primary"><div class="kpi-label">Доход (месяц)</div><div class="kpi-value" id="billMonth">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Ожидается</div><div class="kpi-value" id="billPending">—</div></div>
+          <div class="kpi-card kpi-alert"><div class="kpi-label">Просрочено</div><div class="kpi-value" id="billOverdue">—</div></div>
         </div>
         <div class="section-title">Счета</div>
-        <div class="invoices-list" id="invoicesList"></div>
-        <div class="section-title">История платежей</div>
-        <div class="payments-chart">
-          <div class="bar-chart" id="barChart"></div>
-        </div>
+        <div id="invoicesList" class="invoices-list"></div>
+        <div class="section-title">Доходность</div>
+        <div class="bar-chart-wrap"><div class="bar-chart" id="barChart"></div></div>
       </section>
 
-      <!-- SETTINGS PAGE -->
+      <!-- SETTINGS -->
       <section class="page" id="page-settings">
         <div class="settings-group">
           <div class="settings-label">Агентство</div>
-          <input type="text" class="settings-input" value="CyprusGuard Agency" />
-          <input type="text" class="settings-input" value="Limassol, Cyprus" style="margin-top:8px"/>
-          <input type="text" class="settings-input" value="+357 99 123 456" style="margin-top:8px"/>
+          <input type="text" class="settings-input" id="setName" placeholder="CyprusGuard Agency"/>
+          <input type="text" class="settings-input" id="setCity" placeholder="Limassol, Cyprus" style="margin-top:8px"/>
+          <input type="text" class="settings-input" id="setPhone" placeholder="+357 99 123 456" style="margin-top:8px"/>
         </div>
         <div class="settings-group">
-          <div class="settings-label">Тарифы (€/мес)</div>
+          <div class="settings-label">PWA — Установить приложение</div>
+          <div class="pwa-install-card">
+            <div style="font-size:32px">📲</div>
+            <div style="flex:1"><div style="font-size:14px;font-weight:500">Установить на экран</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Работает офлайн, быстрый доступ</div></div>
+            <button class="btn-primary" id="installPwaBtn" style="display:none">Установить</button>
+            <span id="pwaInstalledBadge" class="status-badge status-planned" style="display:none">✓ Установлено</span>
+          </div>
+          <div style="margin-top:10px;font-size:12px;color:var(--text3)">
+            <b>iOS Safari:</b> Поделиться → На экран «Домой»<br/>
+            <b>Android Chrome:</b> Меню → Добавить на гл. экран<br/>
+            <b>Desktop Chrome:</b> Иконка ⊕ в адресной строке
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-label">Тарифные планы</div>
           <div class="tariff-grid">
-            <div class="tariff-card">
-              <div class="tariff-name">Basic</div>
-              <div class="tariff-price">€50</div>
-              <div class="tariff-features">
-                <div>✓ 2 визита/мес</div>
-                <div>✓ Фото-отчёт</div>
-                <div>✓ Telegram</div>
-              </div>
-            </div>
-            <div class="tariff-card tariff-popular">
-              <div class="tariff-badge">Popular</div>
-              <div class="tariff-name">Standard</div>
-              <div class="tariff-price">€75</div>
-              <div class="tariff-features">
-                <div>✓ 4 визита/мес</div>
-                <div>✓ Фото + Видео</div>
-                <div>✓ Полив растений</div>
-                <div>✓ Проверка счетов</div>
-              </div>
-            </div>
-            <div class="tariff-card">
-              <div class="tariff-name">Premium</div>
-              <div class="tariff-price">€100</div>
-              <div class="tariff-features">
-                <div>✓ Еженедельно</div>
-                <div>✓ Видео-тур</div>
-                <div>✓ Срочный выезд</div>
-                <div>✓ Мелкий ремонт</div>
-              </div>
-            </div>
+            <div class="tariff-card"><div class="tariff-name">Basic</div><div class="tariff-price">€50</div><div class="tariff-features"><div>✓ 2 визита/мес</div><div>✓ Фото</div><div>✓ Telegram</div></div></div>
+            <div class="tariff-card tariff-popular"><div class="tariff-badge">Popular</div><div class="tariff-name">Standard</div><div class="tariff-price">€75</div><div class="tariff-features"><div>✓ 4 визита/мес</div><div>✓ Фото+Видео</div><div>✓ Полив</div></div></div>
+            <div class="tariff-card"><div class="tariff-name">Premium</div><div class="tariff-price">€100</div><div class="tariff-features"><div>✓ Еженедельно</div><div>✓ Видео-тур</div><div>✓ Срочный выезд</div></div></div>
           </div>
         </div>
         <div class="settings-group">
-          <div class="settings-label">Уведомления</div>
-          <div class="toggle-list">
-            <div class="toggle-item">
-              <div class="toggle-name">Push-уведомления</div>
-              <label class="toggle"><input type="checkbox" checked /><span></span></label>
-            </div>
-            <div class="toggle-item">
-              <div class="toggle-name">Email-отчёты</div>
-              <label class="toggle"><input type="checkbox" checked /><span></span></label>
-            </div>
-          </div>
-        </div>
-        <div class="settings-group">
-          <button class="btn-primary" style="width:100%">💾 Сохранить настройки</button>
+          <button class="btn-primary" id="saveSettingsBtn" style="width:100%">💾 Сохранить</button>
         </div>
       </section>
 
-    </div><!-- /pages -->
+    </div>
   </main>
+</div>
 
-</div><!-- /app -->
-
-<!-- MODAL: Add Visit -->
+<!-- MODALS -->
 <div class="modal-backdrop" id="addVisitModal">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Новый визит</div>
-      <button class="modal-close" data-modal="addVisitModal">✕</button>
-    </div>
+    <div class="modal-header"><div class="modal-title">Новый визит</div><button class="modal-close" data-modal="addVisitModal">✕</button></div>
     <div class="modal-body">
-      <label class="form-label">Объект</label>
-      <select class="form-input" id="visitProperty">
-        <option>Выберите объект...</option>
-      </select>
-      <label class="form-label">Дата</label>
-      <input type="date" class="form-input" id="visitDate" />
-      <label class="form-label">Тип визита</label>
+      <label class="form-label">Объект *</label><select class="form-input" id="visitProperty"></select>
+      <label class="form-label">Дата *</label><input type="date" class="form-input" id="visitDate"/>
+      <label class="form-label">Тип</label>
       <select class="form-input" id="visitType">
-        <option>Плановый осмотр</option>
-        <option>Срочный выезд</option>
-        <option>Первичный осмотр</option>
-        <option>Завершение сезона</option>
+        <option value="planned">Плановый осмотр</option><option value="urgent">Срочный выезд</option>
+        <option value="initial">Первичный осмотр</option><option value="seasonal">Завершение сезона</option>
       </select>
       <label class="form-label">Задачи</label>
-      <div class="checklist-edit">
-        <label><input type="checkbox" checked /> Проветривание</label>
-        <label><input type="checkbox" checked /> Полив растений</label>
-        <label><input type="checkbox" checked /> Проверка счетов</label>
-        <label><input type="checkbox" /> Проверка сантехники</label>
-        <label><input type="checkbox" /> Фотофиксация</label>
-        <label><input type="checkbox" /> Уборка</label>
+      <div class="checklist-edit" id="visitTaskList">
+        <label><input type="checkbox" value="Проветривание" checked/> Проветривание</label>
+        <label><input type="checkbox" value="Полив растений" checked/> Полив растений</label>
+        <label><input type="checkbox" value="Проверка счетов" checked/> Проверка счетов</label>
+        <label><input type="checkbox" value="Фотофиксация"/> Фотофиксация</label>
+        <label><input type="checkbox" value="Проверка замков"/> Проверка замков</label>
+        <label><input type="checkbox" value="Уборка"/> Уборка</label>
       </div>
-      <label class="form-label">Заметки</label>
-      <textarea class="form-input" rows="3" placeholder="Доп. инструкции..."></textarea>
+      <label class="form-label">Заметки</label><textarea class="form-input" id="visitNotes" rows="2" placeholder="Доп. инструкции…"></textarea>
     </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" data-modal="addVisitModal">Отмена</button>
-      <button class="btn-primary" id="saveVisit">Создать визит</button>
-    </div>
+    <div class="modal-footer"><button class="btn-secondary" data-modal="addVisitModal">Отмена</button><button class="btn-primary" id="saveVisitBtn">Создать</button></div>
   </div>
 </div>
 
-<!-- MODAL: Report -->
-<div class="modal-backdrop" id="reportModal">
-  <div class="modal modal-large">
-    <div class="modal-header">
-      <div class="modal-title" id="reportModalTitle">Отчёт о визите</div>
-      <button class="modal-close" data-modal="reportModal">✕</button>
-    </div>
-    <div class="modal-body" id="reportModalBody">
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" data-modal="reportModal">Закрыть</button>
-      <button class="btn-primary" id="sendReportTg">✈ Отправить в Telegram</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Add Property -->
 <div class="modal-backdrop" id="addPropertyModal">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Новый объект</div>
-      <button class="modal-close" data-modal="addPropertyModal">✕</button>
-    </div>
+    <div class="modal-header"><div class="modal-title" id="propModalTitle">Новый объект</div><button class="modal-close" data-modal="addPropertyModal">✕</button></div>
     <div class="modal-body">
-      <label class="form-label">Адрес</label>
-      <input type="text" class="form-input" placeholder="Limassol, Germasogeia..." />
-      <label class="form-label">Клиент</label>
-      <select class="form-input">
-        <option>Выберите клиента...</option>
-        <option>Иванов И.И.</option>
-        <option>Hans Müller</option>
-        <option>Anna Schmidt</option>
-      </select>
+      <label class="form-label">Адрес *</label><input type="text" class="form-input" id="propAddress" placeholder="Limassol, Germasogeia…"/>
+      <label class="form-label">Клиент *</label><select class="form-input" id="propClientSel"></select>
+      <label class="form-label">Тип</label>
+      <select class="form-input" id="propType"><option value="apt">🏢 Квартира</option><option value="villa">🏖️ Вилла</option><option value="studio">🌊 Студия</option><option value="house">🏠 Дом</option></select>
       <label class="form-label">Тариф</label>
-      <select class="form-input">
-        <option>Basic — €50/мес</option>
-        <option>Standard — €75/мес</option>
-        <option>Premium — €100/мес</option>
-      </select>
-      <label class="form-label">Тип объекта</label>
-      <select class="form-input">
-        <option>Квартира</option>
-        <option>Вилла</option>
-        <option>Таунхаус</option>
-        <option>Студия</option>
-      </select>
-      <label class="form-label">Примечания</label>
-      <textarea class="form-input" rows="2" placeholder="Особенности объекта..."></textarea>
+      <select class="form-input" id="propTariff"><option value="basic">Basic — €50/мес</option><option value="standard">Standard — €75/мес</option><option value="premium">Premium — €100/мес</option></select>
+      <label class="form-label">Следующий визит</label><input type="date" class="form-input" id="propNextVisit"/>
+      <label class="form-label">Примечания</label><textarea class="form-input" id="propNotes" rows="2" placeholder="Особенности…"></textarea>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" data-modal="addPropertyModal">Отмена</button><button class="btn-primary" id="savePropBtn">Сохранить</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="addClientModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Новый клиент</div><button class="modal-close" data-modal="addClientModal">✕</button></div>
+    <div class="modal-body">
+      <label class="form-label">Имя *</label><input type="text" class="form-input" id="clientName" placeholder="Иванов Иван"/>
+      <label class="form-label">Страна</label><input type="text" class="form-input" id="clientCountry" placeholder="🇷🇺 Россия"/>
+      <label class="form-label">Телефон</label><input type="tel" class="form-input" id="clientPhone" placeholder="+7 916 …"/>
+      <label class="form-label">Telegram</label><input type="text" class="form-input" id="clientTg" placeholder="@username"/>
+      <label class="form-label">Язык</label>
+      <select class="form-input" id="clientLang"><option value="ru">Русский</option><option value="en">English</option><option value="de">Deutsch</option><option value="fr">Français</option></select>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" data-modal="addClientModal">Отмена</button><button class="btn-primary" id="saveClientBtn">Добавить</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="createReportModal">
+  <div class="modal modal-large">
+    <div class="modal-header"><div class="modal-title">Создать отчёт</div><button class="modal-close" data-modal="createReportModal">✕</button></div>
+    <div class="modal-body">
+      <label class="form-label">Визит *</label><select class="form-input" id="reportVisitSel"></select>
+      <label class="form-label">Состояние</label>
+      <select class="form-input" id="reportCondition"><option value="ok">✅ Всё в норме</option><option value="warning">⚠️ Есть замечания</option><option value="issue">❌ Проблема</option></select>
+      <label class="form-label">Задачи выполнены</label>
+      <div class="checklist-edit" id="reportTaskList">
+        <label><input type="checkbox" value="Проветривание" checked/> Проветривание</label>
+        <label><input type="checkbox" value="Полив растений" checked/> Полив растений</label>
+        <label><input type="checkbox" value="Проверка счетов" checked/> Проверка счетов</label>
+        <label><input type="checkbox" value="Фотофиксация" checked/> Фотофиксация</label>
+      </div>
+      <label class="form-label">Фото (множественный выбор)</label>
+      <div class="photo-upload-area" id="photoUploadArea">
+        <div class="photo-upload-placeholder" id="photoPlaceholder" onclick="document.getElementById('photoInput').click()">
+          <div style="font-size:32px">📷</div><div>Нажмите для выбора</div>
+          <div style="font-size:11px;color:var(--text3)">JPG/PNG до 10 МБ каждое</div>
+        </div>
+        <input type="file" id="photoInput" accept="image/*" multiple style="display:none"/>
+        <div class="photo-preview-grid" id="photoPreview"></div>
+      </div>
+      <label class="form-label">Видео (до 50 МБ)</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="file" id="videoInput" accept="video/*" style="display:none"/>
+        <button class="btn-secondary" onclick="document.getElementById('videoInput').click()" style="flex:1">🎥 Выбрать видео</button>
+        <div id="videoName" style="font-size:12px;color:var(--text2)"></div>
+      </div>
+      <label class="form-label">Комментарий</label>
+      <textarea class="form-input" id="reportComment" rows="3" placeholder="Состояние объекта…"></textarea>
+      <label class="form-label">Счёт ЖКХ (€)</label>
+      <input type="number" class="form-input" id="reportBill" placeholder="0" step="0.01"/>
+      <div class="upload-progress hidden" id="uploadProgress">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">Загрузка…</div>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-secondary" data-modal="addPropertyModal">Отмена</button>
-      <button class="btn-primary" id="saveProperty">Добавить объект</button>
+      <button class="btn-secondary" data-modal="createReportModal">Отмена</button>
+      <button class="btn-primary" id="saveReportBtn">✅ Сохранить и отправить</button>
     </div>
   </div>
 </div>
 
-<!-- NOTIFICATION PANEL -->
-<div class="notify-panel" id="notifyPanel">
-  <div class="notify-header">
-    <div class="notify-title">Уведомления</div>
-    <button class="notify-clear" id="notifyClear">Очистить</button>
+<div class="modal-backdrop" id="reportModal">
+  <div class="modal modal-large">
+    <div class="modal-header"><div class="modal-title" id="reportModalTitle">Отчёт</div><button class="modal-close" data-modal="reportModal">✕</button></div>
+    <div class="modal-body" id="reportModalBody"></div>
+    <div class="modal-footer"><button class="btn-secondary" data-modal="reportModal">Закрыть</button><button class="btn-primary" id="sendReportTgBtn">✈ Отправить в Telegram</button></div>
   </div>
-  <div class="notify-list" id="notifyList"></div>
 </div>
 
-<!-- TOAST -->
+<div class="modal-backdrop" id="requestModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Заявка клиента</div><button class="modal-close" data-modal="requestModal">✕</button></div>
+    <div class="modal-body" id="requestModalBody"></div>
+    <div class="modal-footer"><button class="btn-secondary" data-modal="requestModal">Закрыть</button><button class="btn-primary" id="acceptRequestBtn">✅ Принять</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="clientLinkModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Ссылка клиента</div><button class="modal-close" data-modal="clientLinkModal">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Отправьте эту ссылку клиенту. Он увидит свои отчёты и сможет оставлять заявки.</div>
+      <div class="link-box" id="clientLinkBox" style="word-break:break-all;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:var(--text2)"></div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" data-modal="clientLinkModal">Закрыть</button><button class="btn-primary" id="copyClientLinkBtn">📋 Скопировать</button></div>
+  </div>
+</div>
+
+<div class="notify-panel" id="notifyPanel">
+  <div class="notify-header"><div class="notify-title">Уведомления</div><button class="notify-clear" id="notifyClear">Очистить</button></div>
+  <div class="notify-list" id="notifyList"><div class="notify-empty">Нет уведомлений</div></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script src="app.js"></script>
+<script src="firebase-config.js"></script>
+<script src="admin.js"></script>
 </body>
 </html>
