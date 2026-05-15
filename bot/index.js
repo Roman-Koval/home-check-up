@@ -346,4 +346,37 @@ bot.on('polling_error', (err) => {
   console.error('Polling error:', err.code, err.message);
 });
 
+// ── SAFE REALTIME: only NEW requests after bot startup ───────
+const BOT_START = Date.now();
+console.log(`⏰ Bot start time: ${BOT_START}`);
+
+db.ref('requests').on('child_added', async (snap) => {
+  const req = snap.val();
+  if (!req || !req.createdAt) return;
+
+  // Skip old requests (created before bot started)
+  if (req.createdAt < BOT_START) return;
+
+  // Skip already notified
+  if (req._adminNotified) return;
+
+  // Mark notified immediately to prevent re-fire
+  await snap.ref.update({ _adminNotified: true });
+
+  if (!ADMIN_ID) return;
+
+  const clients = await get('clients') || {};
+  const props = await get('properties') || {};
+  const client = Object.values(clients).find(c => c.id === req.clientId);
+  const prop = props[req.propId];
+
+  const text = `📬 *Новая заявка!*\n\n*${req.title}*\n\n👤 ${client?.name || '—'}\n🏠 ${prop?.address || '—'}\n\n${req.description || ''}`;
+
+  bot.sendMessage(ADMIN_ID, text, { parse_mode: 'Markdown' }).catch(e =>
+    console.error('Admin notify failed:', e.message)
+  );
+
+  console.log(`📬 New request notified: ${req.title}`);
+});
+
 console.log('✅ Bot handlers registered. Waiting for messages…');
