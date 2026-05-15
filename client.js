@@ -208,6 +208,25 @@ function renderMyRequests() {
     </div>`).join('') || '<div style="color:var(--text3);font-size:13px;padding:12px">Заявок нет</div>';
 }
 
+function compressImage(dataUrl, maxSize = 600, quality = 0.65) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else       { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 async function sendRequest() {
   const title = document.getElementById('reqTitle').value.trim();
   const desc  = document.getElementById('reqDesc').value.trim();
@@ -216,59 +235,56 @@ async function sendRequest() {
   const btn = document.getElementById('sendReqBtn');
   btn.textContent = '⏳ Отправка…'; btn.disabled = true;
 
-  const prop = Client.properties[0];
-  const id = 'req' + Date.now();
+  try {
+    const prop = Client.properties[0];
+    const id = 'req' + Date.now();
 
-  // Upload photos
-  const photoUrls = [];
-  for (const ph of Client.reqPhotos) {
-    try {
-      const url = await Storage.uploadBase64(`requests/${id}/photo_${Date.now()}`, ph.dataUrl);
-      photoUrls.push(url);
-    } catch(e) {}
-  }
-
-  const data = {
-    id, clientId: Client.data.id, propId: prop?.id || '',
-    type:     Client.reqType,
-    title,
-    description: desc,
-    priority: document.getElementById('reqPriority').value,
-    photoUrls, status: 'new',
-  };
-
-  await DB.set(`requests/${id}`, data);
-
-  // Notify admin via notification
-  await DB.push('notifications', {
-    message: `📬 Новая заявка от ${Client.data.name}: «${title}»`,
-    type: 'warning',
-  });
-
-  // Notify admin via Telegram if bot active
-  const settings = await DB.once('settings/telegram');
-  if (settings?.token && settings?.notifyNewRequest) {
-    const adminChatId = settings?.adminChatId;
-    if (adminChatId) {
-      const msg = `📬 *Новая заявка*\n\nОт: ${Client.data.name}\nОбъект: ${prop?.address||'—'}\nТип: ${title}\n\n${desc}`;
-      await fetch(`https://api.telegram.org/bot${settings.token}/sendMessage`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: adminChatId, text: msg, parse_mode: 'Markdown' })
-      });
+    // Compress photos as base64 (no Firebase Storage needed on Spark plan)
+    const photoUrls = [];
+    for (const ph of Client.reqPhotos) {
+      try {
+        const compressed = await compressImage(ph.dataUrl, 500, 0.6);
+        photoUrls.push(compressed);
+      } catch(e) { console.warn('Photo compress failed:', e); }
     }
+
+    const data = {
+      id, clientId: Client.data.id, propId: prop?.id || '',
+      type:     Client.reqType,
+      title,
+      description: desc,
+      priority: document.getElementById('reqPriority').value,
+      photoUrls, status: 'new',
+      createdAt: Date.now()
+    };
+
+    console.log('Saving request to DB:', id);
+    await DB.set(`requests/${id}`, data);
+    console.log('Request saved ✓');
+
+    // Notify admin via notification (optional, don't block on this)
+    DB.push('notifications', {
+      message: `📬 Новая заявка от ${Client.data.name}: «${title}»`,
+      type: 'warning',
+    }).catch(e => console.warn('Notification push failed:', e));
+
+    // Reset
+    Client.reqPhotos = [];
+    document.getElementById('reqPhotoPreview').innerHTML = '';
+    document.getElementById('reqTitle').value = '';
+    document.getElementById('reqDesc').value = '';
+    btn.textContent = '✅ Отправлено!';
+    setTimeout(() => { btn.textContent = '📤 Отправить заявку'; btn.disabled = false; }, 2000);
+
+    Client.requests.unshift(data);
+    renderMyRequests();
+    showClientToast('✅ Заявка отправлена! Ответим в течение 24 часов.');
+  } catch(err) {
+    console.error('sendRequest error:', err);
+    showClientToast('❌ Ошибка: ' + (err.message || 'не удалось отправить'));
+    btn.textContent = '📤 Отправить заявку';
+    btn.disabled = false;
   }
-
-  // Reset
-  Client.reqPhotos = [];
-  document.getElementById('reqPhotoPreview').innerHTML = '';
-  document.getElementById('reqTitle').value = '';
-  document.getElementById('reqDesc').value = '';
-  btn.textContent = '✅ Отправлено!';
-  setTimeout(() => { btn.textContent = '📤 Отправить заявку'; btn.disabled = false; }, 2000);
-
-  Client.requests.unshift(data);
-  renderMyRequests();
-  showClientToast('✅ Заявка отправлена! Ответим в течение 24 часов.');
 }
 
 // ── REQUEST PHOTOS ───────────────────────────────────────────
