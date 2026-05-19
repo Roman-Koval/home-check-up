@@ -6,14 +6,14 @@
 
 // ── 1. PASTE YOUR FIREBASE CONFIG HERE ──────────────────────
 const firebaseConfig = {
-    apiKey: "AIzaSyBzfmFdgO_IxZSlcTS7i8U0cktwwkQAUwM",
-    authDomain: "cyprusguard-902a2.firebaseapp.com",
-    databaseURL: "https://cyprusguard-902a2-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "cyprusguard-902a2",
-    storageBucket: "cyprusguard-902a2.firebasestorage.app",
-    messagingSenderId: "705984427821",
-    appId: "1:705984427821:web:db66a32626d25e6abb45a4"
-  };
+  apiKey: "AIzaSyBzfmFdgO_IxZSlcTS7i8U0cktwwkQAUwM",
+  authDomain:        "cyprusguard-902a2.firebaseapp.com",
+  databaseURL:       "https://cyprusguard-902a2-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "cyprusguard-902a2",
+  storageBucket:     "cyprusguard-902a2.appspot.com",
+  messagingSenderId: "705984427821",
+  appId:             "1:705984427821:web:db66a32626d25e6abb45a4"
+};
 
 // ── 2. SDK IMPORTS (loaded via CDN in HTML) ──────────────────
 //  index.html already imports the compat SDKs, so we just
@@ -22,9 +22,10 @@ if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
-const db      = firebase.database();
-const auth    = firebase.auth();
-const storage = firebase.storage();
+const db   = firebase.database();
+const auth = firebase.auth();
+// Storage requires Blaze plan. App works without it — photos stored as base64 in DB.
+const storage = (typeof firebase.storage === 'function') ? firebase.storage() : null;
 
 // ── 3. COLLECTIONS HELPER ───────────────────────────────────
 const DB = {
@@ -117,9 +118,12 @@ const Auth = {
 };
 
 // ── 5. STORAGE HELPERS ──────────────────────────────────────
+// Note: Firebase Storage requires Blaze plan.
+// On Spark plan, photos are compressed and stored as base64 in Realtime DB.
+// These helpers are no-ops unless storage is available.
 const Storage = {
-  // Upload a File object; returns download URL
   uploadFile: async (path, file, onProgress) => {
+    if (!storage) { console.warn('Storage unavailable (Spark plan)'); return null; }
     const ref = storage.ref(path);
     const task = ref.put(file);
     if (onProgress) {
@@ -131,16 +135,15 @@ const Storage = {
     return ref.getDownloadURL();
   },
 
-  // Upload base64 data URI
   uploadBase64: async (path, dataUrl, mime = 'image/jpeg') => {
+    if (!storage) { console.warn('Storage unavailable (Spark plan)'); return dataUrl; }
     const ref = storage.ref(path);
     await ref.putString(dataUrl, 'data_url', { contentType: mime });
     return ref.getDownloadURL();
   },
 
-  deleteFile: (path) => storage.ref(path).delete().catch(() => {}),
-
-  getUrl: (path) => storage.ref(path).getDownloadURL()
+  deleteFile: (path) => storage ? storage.ref(path).delete().catch(() => {}) : Promise.resolve(),
+  getUrl: (path) => storage ? storage.ref(path).getDownloadURL() : Promise.resolve(null)
 };
 
 // ── 6. SEED DEMO DATA (run once) ────────────────────────────
