@@ -65,7 +65,7 @@ const DB = {
     return ref.set({ ...data, id, createdAt: Date.now() }).then(() => id);
   },
 
-  set: (path, data) => db.ref(path).set({ ...data, updatedAt: Date.now() }),
+  set: (path, data) => db.ref(path).set({ createdAt: Date.now(), ...data, updatedAt: Date.now() }),
 
   update: (path, data) => db.ref(path).update({ ...data, updatedAt: Date.now() }),
 
@@ -145,6 +145,31 @@ const Storage = {
   deleteFile: (path) => storage ? storage.ref(path).delete().catch(() => {}) : Promise.resolve(),
   getUrl: (path) => storage ? storage.ref(path).getDownloadURL() : Promise.resolve(null)
 };
+
+// ── 5b. SHARED IMAGE COMPRESSION ────────────────────────────
+// Used by both admin and client to keep base64 photos small enough
+// for the Realtime DB (Spark plan, no Storage). Returns a JPEG dataURL.
+function compressImage(dataUrl, maxSize = 1000, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height) {
+        if (width > maxSize) { height = Math.round(height * maxSize / width); width = maxSize; }
+      } else {
+        if (height > maxSize) { width = Math.round(width * maxSize / height); height = maxSize; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+window.compressImage = compressImage;
 
 // ── 6. SEED DEMO DATA (run once) ────────────────────────────
 // Call seedDemoData() from browser console on first run.

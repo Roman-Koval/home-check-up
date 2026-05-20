@@ -24,7 +24,7 @@
   <div class="splash-logo">
     <div class="splash-icon">🏛️</div>
     <div class="splash-name">CyprusGuard</div>
-    <div class="splash-tagline">Ваш личный кабинет</div>
+    <div class="splash-tagline" data-i18n="splashSub">Ваш личный кабинет</div>
   </div>
   <div class="splash-progress"><div class="splash-bar"></div></div>
 </div>
@@ -32,9 +32,9 @@
 <div id="accessDenied" class="access-denied hidden">
   <div class="access-card">
     <div style="font-size:48px">🔒</div>
-    <div class="access-title">Доступ закрыт</div>
-    <div class="access-desc">Ссылка недействительна или истекла. Обратитесь в агентство CyprusGuard.</div>
-    <a href="tel:+35799123456" class="btn-primary" style="text-decoration:none;text-align:center">📞 Позвонить</a>
+    <div class="access-title" data-i18n="accessTitle">Доступ закрыт</div>
+    <div class="access-desc" data-i18n="accessDesc">Ссылка недействительна или истекла. Обратитесь в агентство CyprusGuard.</div>
+    <a href="tel:+35799123456" class="btn-primary" data-i18n="call" style="text-decoration:none;text-align:center">📞 Позвонить</a>
   </div>
 </div>
 
@@ -46,10 +46,16 @@
       <span style="font-size:22px">🏛️</span>
       <div>
         <div class="client-brand-name">CyprusGuard</div>
-        <div class="client-brand-sub">Личный кабинет</div>
+        <div class="client-brand-sub" data-i18n="brandSub">Личный кабинет</div>
       </div>
     </div>
     <div class="client-user">
+      <select class="lang-switcher" id="langSwitcher" title="Language">
+        <option value="ru">🇷🇺 RU</option>
+        <option value="en">🇬🇧 EN</option>
+        <option value="de">🇩🇪 DE</option>
+        <option value="fr">🇫🇷 FR</option>
+      </select>
       <div class="client-avatar" id="clientAvatar">?</div>
       <div class="client-name-header" id="clientNameHeader">—</div>
     </div>
@@ -57,10 +63,10 @@
 
   <!-- TABS -->
   <nav class="client-tabs">
-    <button class="client-tab active" data-tab="overview">🏠 Обзор</button>
-    <button class="client-tab" data-tab="reports">📋 Отчёты</button>
-    <button class="client-tab" data-tab="request">📬 Заявка</button>
-    <button class="client-tab" data-tab="info">ℹ️ Контакты</button>
+    <button class="client-tab active" data-tab="overview" data-i18n="tabOverview">🏠 Обзор</button>
+    <button class="client-tab" data-tab="reports" data-i18n="tabReports">📋 Отчёты</button>
+    <button class="client-tab" data-tab="request" data-i18n="tabRequest">📬 Заявка</button>
+    <button class="client-tab" data-tab="info" data-i18n="tabInfo">ℹ️ Контакты</button>
   </nav>
 
   <div class="client-pages">
@@ -84,15 +90,15 @@
       </div>
 
       <div class="client-kpi-row">
-        <div class="client-kpi"><div class="client-kpi-val" id="ckpiVisits">—</div><div class="client-kpi-label">Визитов всего</div></div>
-        <div class="client-kpi"><div class="client-kpi-val" id="ckpiReports">—</div><div class="client-kpi-label">Отчётов</div></div>
-        <div class="client-kpi"><div class="client-kpi-val" id="ckpiNext">—</div><div class="client-kpi-label">Следующий визит</div></div>
+        <div class="client-kpi"><div class="client-kpi-val" id="ckpiVisits">—</div><div class="client-kpi-label" data-i18n="kpiVisits">Визитов всего</div></div>
+        <div class="client-kpi"><div class="client-kpi-val" id="ckpiReports">—</div><div class="client-kpi-label" data-i18n="kpiReports">Отчётов</div></div>
+        <div class="client-kpi"><div class="client-kpi-val" id="ckpiNext">—</div><div class="client-kpi-label" data-i18n="kpiNext">Следующий визит</div></div>
       </div>
 
-      <div class="client-section-title">Последние отчёты</div>
+      <div class="client-section-title" data-i18n="recentReports">Последние отчёты</div>
       <div id="clientRecentReports" class="client-reports-list"></div>
 
-      <div class="client-section-title">История визитов</div>
+      <div class="client-section-title" data-i18n="visitHistory">История визитов</div>
       <div id="clientVisitHistory" class="client-visits-list"></div>
     </div>
 
@@ -105,46 +111,46 @@
     <div class="client-page" id="ctab-request">
       <div class="request-hero">
         <div style="font-size:40px">📬</div>
-        <div class="request-hero-title">Отправить заявку</div>
-        <div class="request-hero-desc">Опишите проблему или пожелание — мы ответим в течение 24 часов</div>
+        <div class="request-hero-title" data-i18n="sendRequest">Отправить заявку</div>
+        <div class="request-hero-desc" data-i18n="requestDesc">Опишите проблему или пожелание — мы ответим в течение 24 часов</div>
       </div>
 
       <div class="client-form">
-        <label class="form-label">Тип заявки</label>
+        <label class="form-label" data-i18n="reqType">Тип заявки</label>
         <div class="req-type-grid">
-          <button class="req-type-btn active" data-type="maintenance">🔧 Ремонт</button>
-          <button class="req-type-btn" data-type="visit">📅 Доп. визит</button>
-          <button class="req-type-btn" data-type="urgent">🚨 Срочно</button>
-          <button class="req-type-btn" data-type="other">📝 Другое</button>
+          <button class="req-type-btn active" data-type="maintenance" data-i18n="typeMaintenance">🔧 Ремонт</button>
+          <button class="req-type-btn" data-type="visit" data-i18n="typeVisit">📅 Доп. визит</button>
+          <button class="req-type-btn" data-type="urgent" data-i18n="typeUrgent">🚨 Срочно</button>
+          <button class="req-type-btn" data-type="other" data-i18n="typeOther">📝 Другое</button>
         </div>
 
-        <label class="form-label">Заголовок</label>
-        <input type="text" class="form-input client-input" id="reqTitle" placeholder="Кратко опишите проблему…" maxlength="80"/>
+        <label class="form-label" data-i18n="title">Заголовок</label>
+        <input type="text" class="form-input client-input" id="reqTitle" data-i18n-ph="titlePh" placeholder="Кратко опишите проблему…" maxlength="80"/>
 
-        <label class="form-label">Подробное описание</label>
-        <textarea class="form-input client-input" id="reqDesc" rows="4" placeholder="Что случилось? Где именно? Как давно?…"></textarea>
+        <label class="form-label" data-i18n="descLabel">Подробное описание</label>
+        <textarea class="form-input client-input" id="reqDesc" rows="4" data-i18n-ph="descPh" placeholder="Что случилось? Где именно? Как давно?…"></textarea>
 
-        <label class="form-label">Приоритет</label>
+        <label class="form-label" data-i18n="priority">Приоритет</label>
         <select class="form-input client-input" id="reqPriority">
           <option value="normal">Обычный — в плановом порядке</option>
           <option value="high">Высокий — в течение недели</option>
           <option value="urgent">Срочный — как можно скорее</option>
         </select>
 
-        <label class="form-label">Фото (необязательно)</label>
+        <label class="form-label" data-i18n="photoOpt">Фото (необязательно)</label>
         <div class="client-photo-upload" onclick="document.getElementById('reqPhotoInput').click()">
           <span style="font-size:24px">📷</span>
-          <span style="font-size:13px;color:var(--text2)">Прикрепить фото</span>
+          <span style="font-size:13px;color:var(--text2)" data-i18n="attachPhoto">Прикрепить фото</span>
           <input type="file" id="reqPhotoInput" accept="image/*" multiple style="display:none" onchange="handleReqPhotos(this)"/>
         </div>
         <div class="photo-preview-grid" id="reqPhotoPreview"></div>
 
         <div class="req-send-wrap">
-          <button class="btn-primary req-send-btn" id="sendReqBtn">📤 Отправить заявку</button>
+          <button class="btn-primary req-send-btn" id="sendReqBtn" data-i18n="sendBtn">📤 Отправить заявку</button>
         </div>
       </div>
 
-      <div class="client-section-title">Мои заявки</div>
+      <div class="client-section-title" data-i18n="myRequests">Мои заявки</div>
       <div id="clientMyRequests" class="requests-list"></div>
     </div>
 
@@ -153,7 +159,7 @@
       <div class="info-card">
         <div style="font-size:48px;text-align:center;margin-bottom:16px">🏛️</div>
         <div class="info-title">CyprusGuard Agency</div>
-        <div class="info-desc">Профессиональный уход за вашей недвижимостью на Кипре</div>
+        <div class="info-desc" data-i18n="agencyDesc">Профессиональный уход за вашей недвижимостью на Кипре</div>
         <div class="info-contacts">
           <a href="tel:+35799123456" class="info-contact-btn">📞 +357 99 123 456</a>
           <a href="mailto:info@cyprusguard.com" class="info-contact-btn">✉️ info@cyprusguard.com</a>
@@ -163,8 +169,8 @@
       </div>
       <div class="pwa-banner" id="pwaBanner" style="display:none">
         <div style="font-size:32px">📲</div>
-        <div><div style="font-weight:500;font-size:14px">Установить приложение</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Быстрый доступ с экрана телефона</div></div>
-        <button class="btn-primary" id="clientInstallBtn" style="padding:8px 16px;font-size:13px">Установить</button>
+        <div><div style="font-weight:500;font-size:14px" data-i18n="installTitle">Установить приложение</div><div style="font-size:12px;color:var(--text2);margin-top:2px" data-i18n="installDesc">Быстрый доступ с экрана телефона</div></div>
+        <button class="btn-primary" id="clientInstallBtn" data-i18n="install" style="padding:8px 16px;font-size:13px">Установить</button>
       </div>
     </div>
 
@@ -176,7 +182,7 @@
   <div class="modal modal-large">
     <div class="modal-header"><div class="modal-title" id="clientReportTitle">Отчёт</div><button class="modal-close" data-modal="clientReportModal">✕</button></div>
     <div class="modal-body" id="clientReportBody"></div>
-    <div class="modal-footer"><button class="btn-secondary" data-modal="clientReportModal">Закрыть</button></div>
+    <div class="modal-footer"><button class="btn-secondary" data-modal="clientReportModal" data-i18n="close">Закрыть</button></div>
   </div>
 </div>
 

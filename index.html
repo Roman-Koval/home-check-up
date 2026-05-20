@@ -93,7 +93,7 @@
             <div class="hero-title">Обзор агентства</div>
             <div class="hero-date" id="heroDate"></div>
           </div>
-          <div class="hero-badge"><div style="font-size:36px">☀️</div><div><div style="font-size:22px;font-weight:300">28°C</div><div style="font-size:11px;color:var(--text3)">Лимассол</div></div></div>
+          <div class="hero-badge"><div style="font-size:36px" id="heroWxIcon">☀️</div><div><div style="font-size:22px;font-weight:300" id="heroWxTemp">—°C</div><div style="font-size:11px;color:var(--text3)" id="heroWxCity">Лимассол</div></div></div>
         </div>
         <div class="kpi-grid">
           <div class="kpi-card kpi-primary"><div class="kpi-label">Объектов</div><div class="kpi-value" id="kpiProps">—</div><div class="kpi-change positive" id="kpiPropsC"></div></div>
@@ -210,7 +210,7 @@
           <div class="kpi-card"><div class="kpi-label">Ожидается</div><div class="kpi-value" id="billPending">—</div></div>
           <div class="kpi-card kpi-alert"><div class="kpi-label">Просрочено</div><div class="kpi-value" id="billOverdue">—</div></div>
         </div>
-        <div class="section-title">Счета</div>
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">Счета<button class="btn-secondary" id="genInvoicesBtn" style="font-size:12px;padding:6px 12px">＋ Счета за месяц</button></div>
         <div id="invoicesList" class="invoices-list"></div>
         <div class="section-title">Доходность</div>
         <div class="bar-chart-wrap"><div class="bar-chart" id="barChart"></div></div>
@@ -383,6 +383,29 @@
       <div class="link-box" id="clientLinkBox" style="word-break:break-all;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:var(--text2)"></div>
     </div>
     <div class="modal-footer"><button class="btn-secondary" data-modal="clientLinkModal">Закрыть</button><button class="btn-primary" id="copyClientLinkBtn">📋 Скопировать</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="propertyDetailModal">
+  <div class="modal modal-large">
+    <div class="modal-header"><div class="modal-title" id="propertyDetailTitle">Объект</div><button class="modal-close" data-modal="propertyDetailModal">✕</button></div>
+    <div class="modal-body" id="propertyDetailBody"></div>
+    <div class="modal-footer" style="flex-wrap:wrap">
+      <button class="btn-secondary" id="propDetailDeleteBtn" style="margin-right:auto">🗑 Удалить</button>
+      <button class="btn-secondary" id="propDetailEditBtn">✎ Изменить</button>
+      <button class="btn-primary" id="propDetailVisitBtn">＋ Визит</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="visitDetailModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="visitDetailTitle">Визит</div><button class="modal-close" data-modal="visitDetailModal">✕</button></div>
+    <div class="modal-body" id="visitDetailBody"></div>
+    <div class="modal-footer" style="flex-wrap:wrap">
+      <button class="btn-secondary" id="visitDetailDeleteBtn" style="margin-right:auto">🗑 Удалить</button>
+      <button class="btn-primary" id="visitDetailReportBtn">✓ Завершить и создать отчёт</button>
+    </div>
   </div>
 </div>
 

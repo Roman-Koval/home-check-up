@@ -6,7 +6,7 @@
 //    - Images (Firebase Storage)    → Cache with Network fallback
 // ================================================================
 
-const CACHE_NAME = 'cyprusguard-v2';
+const CACHE_NAME = 'cyprusguard-v3';
 const OFFLINE_URL = '/offline.html';
 
 const SHELL_ASSETS = [
@@ -59,6 +59,7 @@ self.addEventListener('fetch', event => {
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('firebaseapp.com') ||
     url.hostname.includes('api.telegram.org') ||
+    url.hostname.includes('open-meteo.com') ||
     url.hostname.includes('firebasestorage.googleapis.com')
   ) {
     return; // Let browser handle normally
@@ -76,9 +77,32 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // App shell → Cache First with Network fallback
+  // App code (HTML/CSS/JS) → Network First, so updates appear without
+  // waiting for a full SW lifecycle; falls back to cache when offline.
+  if (/\.(html|css|js|json)$/.test(url.pathname) || url.pathname === '/' || url.pathname.endsWith('/')) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  // Everything else (images etc.) → Cache First with Network fallback
   event.respondWith(cacheFirst(event.request));
 });
+
+// Network First: try network, cache the fresh copy, fall back to cache offline
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (e) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    throw e;
+  }
+}
 
 // ── STRATEGIES ───────────────────────────────────────────────
 async function cacheFirst(request) {

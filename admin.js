@@ -13,14 +13,17 @@ const State = {
   visits: {},
   reports: {},
   requests: {},
+  invoices: {},
+  settings: {},
   notifications: [],
-  calDate: new Date(2026, 4, 1),
+  calDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   propFilter: 'all',
   propSearch: '',
   reqFilter: 'new',
   reportSearch: '',
   currentReqId: null,
   currentReportId: null,
+  editingPropId: null,
   uploadedPhotos: [],   // { file, dataUrl, storageUrl }
   uploadedVideo: null,
   deferredInstall: null,
@@ -142,6 +145,13 @@ function subscribeAll() {
   sub('visits',     'visits',     () => { renderVisitsDetailed(); updateKPIs(); renderCalendar(); populateVisitSelects(); renderDashVisits(); });
   sub('reports',    'reports',    () => { renderReports(); populateReportVisitSel(); });
   sub('requests',   'requests',   () => { renderRequests(); updateKPIs(); renderDashRequests(); });
+  sub('invoices',   'invoices',   () => { if (State.page === 'billing') renderBilling(); updateKPIs(); });
+
+  // Settings (realtime, drives billing + telegram state)
+  State.unsubs.push(DB.on('settings', s => {
+    State.settings = s || {};
+    if (State.page === 'billing') renderBilling();
+  }));
 
   // Notifications
   DB.onList('notifications', list => {
@@ -250,6 +260,9 @@ function bindAppEvents() {
   document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
   document.getElementById('installPwaBtn').addEventListener('click', installPwa);
 
+  // Billing
+  document.getElementById('genInvoicesBtn')?.addEventListener('click', generateMonthlyInvoices);
+
   // Load settings
   DB.once('settings').then(s => {
     if (!s) return;
@@ -280,6 +293,11 @@ function navigateTo(page) {
 
 function handleAdd() {
   const map = { properties: 'addPropertyModal', visits: 'addVisitModal', clients: 'addClientModal', reports: 'createReportModal' };
+  if (State.page === 'properties') {
+    State.editingPropId = null;
+    document.getElementById('propModalTitle').textContent = 'Новый объект';
+    clearForm(['propAddress','propNotes']);
+  }
   openModal(map[State.page] || 'addVisitModal');
 }
 
@@ -294,6 +312,35 @@ function updateHero() {
   if (el) el.textContent = g;
   const d = document.getElementById('heroDate');
   if (d) d.textContent = new Date().toLocaleDateString('ru-RU', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  loadWeather();
+}
+
+// Live weather for Limassol via Open-Meteo (free, no API key)
+async function loadWeather() {
+  const tempEl = document.getElementById('heroWxTemp');
+  const iconEl = document.getElementById('heroWxIcon');
+  if (!tempEl) return;
+  // WMO weather code → emoji
+  const wxIcon = code => {
+    if (code === 0) return '☀️';
+    if (code <= 2) return '🌤️';
+    if (code === 3) return '☁️';
+    if (code <= 48) return '🌫️';
+    if (code <= 67) return '🌧️';
+    if (code <= 77) return '❄️';
+    if (code <= 82) return '🌦️';
+    if (code <= 99) return '⛈️';
+    return '☀️';
+  };
+  try {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=34.707&longitude=33.022&current=temperature_2m,weather_code');
+    const data = await r.json();
+    const cur = data.current;
+    if (cur) {
+      tempEl.textContent = `${Math.round(cur.temperature_2m)}°C`;
+      iconEl.textContent = wxIcon(cur.weather_code);
+    }
+  } catch(e) { /* keep placeholder */ }
 }
 
 // ── KPIs ─────────────────────────────────────────────────────
@@ -376,7 +423,69 @@ function getClientName(id) {
 function openPropertyDetail(id) {
   const p = State.properties[id];
   if (!p) return;
-  showToast(`🏠 ${p.address} · ${getClientName(p.clientId)}`);
+  const client = State.clients[p.clientId] || {};
+  const visits = Object.values(State.visits).filter(v => v.propId === id).sort((a,b)=>a.date>b.date?-1:1);
+  const reports = Object.values(State.reports).filter(r => r.propId === id).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const upcoming = visits.filter(v => v.status !== 'done');
+
+  const visitsHtml = visits.slice(0,5).map(v => {
+    const SL = { planned:'Запланирован', urgent:'Срочно', issue:'Проблема', done:'Выполнен' };
+    const SC = { planned:'status-planned', urgent:'status-urgent', issue:'status-issue', done:'status-done' };
+    return `<div class="detail-row"><span>${formatDate(v.date)} · ${v.type||''}</span><span class="status-badge ${SC[v.status]||'status-planned'}">${SL[v.status]||'—'}</span></div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:13px">Визитов нет</div>';
+
+  const reportsHtml = reports.slice(0,4).map(r => {
+    const cond = { ok:'✅ Норма', warning:'⚠️ Замечание', issue:'❌ Проблема' };
+    return `<div class="detail-row" style="cursor:pointer" onclick="closeModal('propertyDetailModal');openReport('${r.id}')"><span>${formatDate(r.date||r.createdAt)}</span><span>${cond[r.condition]||'—'} ${r.photoUrls?.length?`📷${r.photoUrls.length}`:''}</span></div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:13px">Отчётов нет</div>';
+
+  document.getElementById('propertyDetailTitle').textContent = p.address;
+  document.getElementById('propertyDetailBody').innerHTML = `
+    <div class="detail-head">
+      <div class="property-icon ${p.type||'apt'}" style="font-size:30px">${TYPE_ICONS[p.type||'apt']}</div>
+      <div>
+        <div style="font-size:16px;font-weight:500">${p.address}</div>
+        <div style="font-size:13px;color:var(--text2)">${client.name||'—'} · ${client.country||''}</div>
+        <div style="margin-top:6px"><span class="status-badge ${STATUS_CLASSES[p.status]||'status-done'}">${STATUS_LABELS[p.status]||'—'}</span></div>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-stat"><div class="detail-stat-val">${TARIFF_LABELS[p.tariff]||p.tariff}</div><div class="detail-stat-lbl">€${TARIFF_PRICE[p.tariff]||0}/мес</div></div>
+      <div class="detail-stat"><div class="detail-stat-val">${visits.length}</div><div class="detail-stat-lbl">визитов</div></div>
+      <div class="detail-stat"><div class="detail-stat-val">${reports.length}</div><div class="detail-stat-lbl">отчётов</div></div>
+    </div>
+    ${p.notes ? `<div class="report-section"><div class="report-section-title">Примечания</div><div style="font-size:13px;color:var(--text2)">${p.notes}</div></div>` : ''}
+    <div class="report-section"><div class="report-section-title">Следующий визит</div><div style="font-size:14px">${upcoming.length ? formatDate(upcoming[0].date) : '— не запланирован'}</div></div>
+    <div class="report-section"><div class="report-section-title">Контакты клиента</div><div style="font-size:13px;color:var(--text2)">📱 ${client.phone||'—'} · ${client.tg||'—'}</div></div>
+    <div class="report-section"><div class="report-section-title">История визитов</div>${visitsHtml}</div>
+    <div class="report-section"><div class="report-section-title">Отчёты</div>${reportsHtml}</div>
+  `;
+  document.getElementById('propDetailVisitBtn').onclick = () => { closeModal('propertyDetailModal'); scheduleVisit(id); };
+  document.getElementById('propDetailEditBtn').onclick = () => { closeModal('propertyDetailModal'); editProperty(id); };
+  document.getElementById('propDetailDeleteBtn').onclick = () => deleteProperty(id);
+  openModal('propertyDetailModal');
+}
+
+function editProperty(id) {
+  const p = State.properties[id];
+  if (!p) return;
+  State.editingPropId = id;
+  document.getElementById('propModalTitle').textContent = 'Редактировать объект';
+  document.getElementById('propAddress').value = p.address || '';
+  populateClientSelects();
+  setTimeout(() => { document.getElementById('propClientSel').value = p.clientId || ''; }, 50);
+  document.getElementById('propType').value = p.type || 'apt';
+  document.getElementById('propTariff').value = p.tariff || 'basic';
+  document.getElementById('propNextVisit').value = p.nextVisit || '';
+  document.getElementById('propNotes').value = p.notes || '';
+  openModal('addPropertyModal');
+}
+
+async function deleteProperty(id) {
+  if (!confirm('Удалить объект? Визиты и отчёты останутся, но без привязки.')) return;
+  await DB.remove(`properties/${id}`);
+  closeModal('propertyDetailModal');
+  showToast('🗑 Объект удалён');
 }
 
 function scheduleVisit(propId) {
@@ -397,10 +506,21 @@ async function saveProperty() {
     tariff:     document.getElementById('propTariff').value,
     nextVisit:  document.getElementById('propNextVisit').value,
     notes:      document.getElementById('propNotes').value.trim(),
-    status:     'ok',
     icon:       TYPE_ICONS[document.getElementById('propType').value] || '🏠',
   };
 
+  // Edit mode
+  if (State.editingPropId) {
+    await DB.update(`properties/${State.editingPropId}`, data);
+    State.editingPropId = null;
+    document.getElementById('propModalTitle').textContent = 'Новый объект';
+    closeModal('addPropertyModal');
+    clearForm(['propAddress','propNotes']);
+    showToast('✅ Объект обновлён!');
+    return;
+  }
+
+  data.status = 'ok';
   const id = 'p' + Date.now();
   await DB.set(`properties/${id}`, { ...data, id });
   await pushNotification('⌂ Новый объект добавлен: ' + address, 'ok');
@@ -565,18 +685,58 @@ function visitItemHTML(v, showComplete = false) {
 function openVisitDetail(id) {
   const v = State.visits[id];
   if (!v) return;
+  State.currentVisitId = id;
   const p = State.properties[v.propId] || {};
-  showToast(`📋 Визит: ${p.address} · ${v.date}`);
+  const SL = { planned:'Запланирован', urgent:'Срочно', issue:'Проблема', done:'Выполнен' };
+  const SC = { planned:'status-planned', urgent:'status-urgent', issue:'status-issue', done:'status-done' };
+  const TL = { planned:'Плановый осмотр', urgent:'Срочный выезд', initial:'Первичный осмотр', seasonal:'Завершение сезона' };
+  const report = Object.values(State.reports).find(r => r.visitId === id);
+
+  document.getElementById('visitDetailTitle').textContent = p.address || 'Визит';
+  document.getElementById('visitDetailBody').innerHTML = `
+    <div class="report-section"><div class="report-section-title">Дата и тип</div><div style="font-size:14px">${formatDate(v.date)} · ${TL[v.type]||v.type||'—'}</div></div>
+    <div class="report-section"><div class="report-section-title">Объект</div><div style="font-size:14px">${p.address||'—'} · ${getClientName(p.clientId)}</div></div>
+    <div class="report-section"><div class="report-section-title">Статус</div><span class="status-badge ${SC[v.status]||'status-planned'}">${SL[v.status]||'—'}</span></div>
+    ${(v.tasks||[]).length ? `<div class="report-section"><div class="report-section-title">Задачи</div><div class="visit-tasks">${v.tasks.map(t=>`<span class="task-chip">${t}</span>`).join('')}</div></div>` : ''}
+    ${v.notes ? `<div class="report-section"><div class="report-section-title">Заметки</div><div style="font-size:13px;color:var(--text2)">${v.notes}</div></div>` : ''}
+    ${report ? `<div class="report-section"><div class="report-section-title">Отчёт</div><button class="client-link-btn" onclick="closeModal('visitDetailModal');openReport('${report.id}')">📄 Открыть отчёт</button></div>` : ''}
+  `;
+  const reportBtn = document.getElementById('visitDetailReportBtn');
+  const delBtn = document.getElementById('visitDetailDeleteBtn');
+  if (v.status === 'done') {
+    reportBtn.textContent = report ? '✓ Отчёт готов' : '+ Создать отчёт';
+    reportBtn.disabled = !!report;
+  } else {
+    reportBtn.textContent = '✓ Завершить и создать отчёт';
+    reportBtn.disabled = false;
+  }
+  reportBtn.onclick = () => { closeModal('visitDetailModal'); completeVisit(id); };
+  delBtn.onclick = async () => {
+    if (!confirm('Удалить визит?')) return;
+    await DB.remove(`visits/${id}`);
+    closeModal('visitDetailModal');
+    showToast('🗑 Визит удалён');
+  };
+  openModal('visitDetailModal');
 }
 
 async function completeVisit(id) {
-  await DB.update(`visits/${id}`, { status: 'done' });
-  showToast('✅ Визит отмечен выполненным!');
+  // Open report form with this visit pre-selected.
+  // The visit is marked "done" only when the report is actually saved (saveReport),
+  // so cancelling the form no longer loses the visit.
   openModal('createReportModal');
-  // Pre-select this visit
   setTimeout(() => {
     const sel = document.getElementById('reportVisitSel');
-    if (sel) sel.value = id;
+    if (sel) {
+      // ensure the visit is selectable even if not in the "not done" list yet
+      if (![...sel.options].some(o => o.value === id)) {
+        const v = State.visits[id]; const p = State.properties[v?.propId];
+        const opt = document.createElement('option');
+        opt.value = id; opt.textContent = `${p?.address||v?.propId} · ${v?.date}`;
+        sel.appendChild(opt);
+      }
+      sel.value = id;
+    }
   }, 200);
 }
 
@@ -608,7 +768,7 @@ function renderCalendar() {
     const dayV = visitsByDate[ds] || [];
     const isToday = today.getDate()===d && today.getMonth()===month && today.getFullYear()===year;
     const dots = dayV.map(v => `<div class="cal-dot ${v.status==='issue'||v.status==='urgent'?v.status:''}"></div>`).join('');
-    html += `<div class="cal-cell ${isToday?'today':''}"><div class="cal-num">${d}</div>${dots}</div>`;
+    html += `<div class="cal-cell ${isToday?'today':''} ${dayV.length?'has-visits':''}" onclick="onCalendarDayClick('${ds}')"><div class="cal-num">${d}</div>${dots}</div>`;
   }
 
   const total = offset + daysInMonth;
@@ -616,6 +776,19 @@ function renderCalendar() {
   for (let d = 1; d <= rem; d++) html += `<div class="cal-cell other-month"><div class="cal-num">${d}</div></div>`;
   html += '</div>';
   document.getElementById('calendarGrid').innerHTML = html;
+}
+
+function onCalendarDayClick(ds) {
+  const dayV = Object.values(State.visits).filter(v => v.date === ds);
+  if (dayV.length === 1) { openVisitDetail(dayV[0].id); return; }
+  if (dayV.length > 1) {
+    // Scroll detailed list to that month and highlight nothing fancy — just open first
+    openVisitDetail(dayV[0].id);
+    return;
+  }
+  // No visits — offer to create one on this date
+  document.getElementById('visitDate').value = ds;
+  openModal('addVisitModal');
 }
 
 // ── REPORTS ──────────────────────────────────────────────────
@@ -688,13 +861,14 @@ async function saveReport() {
   // Show progress
   document.getElementById('uploadProgress').classList.remove('hidden');
 
-  // Upload photos
+  // Upload photos (compressed to keep DB small on Spark plan)
   const photoUrls = [];
   for (let i = 0; i < State.uploadedPhotos.length; i++) {
     const ph = State.uploadedPhotos[i];
-    setProgress(Math.round((i / State.uploadedPhotos.length) * 70), `Фото ${i+1}/${State.uploadedPhotos.length}…`);
+    setProgress(Math.round((i / Math.max(State.uploadedPhotos.length,1)) * 70), `Фото ${i+1}/${State.uploadedPhotos.length}…`);
     try {
-      const url = await Storage.uploadBase64(`reports/${visitId}/photo_${i}_${Date.now()}`, ph.dataUrl);
+      const compressed = await compressImage(ph.dataUrl, 1000, 0.7);
+      const url = await Storage.uploadBase64(`reports/${visitId}/photo_${i}_${Date.now()}`, compressed);
       photoUrls.push(url);
     } catch(e) { console.warn('Photo upload failed', e); }
   }
@@ -759,26 +933,29 @@ function handlePhotoSelect(e) {
   const files = [...e.target.files];
   const preview = document.getElementById('photoPreview');
   const placeholder = document.getElementById('photoPlaceholder');
-  placeholder.style.display = 'none';
+  if (files.length) placeholder.style.display = 'none';
 
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = ev => {
       const dataUrl = ev.target.result;
-      State.uploadedPhotos.push({ file, dataUrl });
-      const idx = State.uploadedPhotos.length - 1;
+      const pid = 'ph' + Date.now() + Math.random().toString(36).slice(2,6);
+      State.uploadedPhotos.push({ pid, file, dataUrl });
       const div = document.createElement('div');
       div.className = 'photo-preview-item';
-      div.innerHTML = `<img src="${dataUrl}"/><button class="remove-photo" onclick="removePhoto(${idx},this)">✕</button>`;
+      div.dataset.pid = pid;
+      div.innerHTML = `<img src="${dataUrl}"/><button class="remove-photo" onclick="removePhoto('${pid}')">✕</button>`;
       preview.appendChild(div);
     };
     reader.readAsDataURL(file);
   });
+  e.target.value = ''; // allow re-selecting the same file
 }
 
-function removePhoto(idx, btn) {
-  State.uploadedPhotos.splice(idx, 1);
-  btn.closest('.photo-preview-item').remove();
+function removePhoto(pid) {
+  State.uploadedPhotos = State.uploadedPhotos.filter(p => p.pid !== pid);
+  const el = document.querySelector(`.photo-preview-item[data-pid="${pid}"]`);
+  if (el) el.remove();
   if (!State.uploadedPhotos.length) document.getElementById('photoPlaceholder').style.display = 'flex';
 }
 
@@ -1027,39 +1204,160 @@ function addTgLog(type, msg) {
 }
 
 // ── BILLING ──────────────────────────────────────────────────
-async function renderBilling() {
-  const invoices = await DB.once('invoices') || {};
-  const list = Object.values(invoices);
-  const paid = list.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount||0), 0);
-  const pending = list.filter(i => i.status === 'pending').reduce((s, i) => s + (i.amount||0), 0);
-  const overdue = list.filter(i => i.status === 'overdue').reduce((s, i) => s + (i.amount||0), 0);
+function renderBilling() {
+  markOverdueInvoices();
+  const list = Object.values(State.invoices).sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+  const thisPeriod = ymLabel();
 
-  setText('billMonth',   `€${paid}`);
+  const paidMonth = list.filter(i => i.status === 'paid' && i.period === thisPeriod).reduce((s,i)=>s+(i.amount||0),0);
+  const pending   = list.filter(i => i.status === 'pending').reduce((s,i)=>s+(i.amount||0),0);
+  const overdue   = list.filter(i => i.status === 'overdue').reduce((s,i)=>s+(i.amount||0),0);
+
+  setText('billMonth',   `€${paidMonth}`);
   setText('billPending', `€${pending}`);
   setText('billOverdue', `€${overdue}`);
 
   const statusLabel = { paid:'✓ Оплачен', pending:'⏳ Ожидает', overdue:'⚠ Просрочен' };
   const statusClass = { paid:'inv-paid', pending:'inv-pending', overdue:'inv-overdue' };
 
+  // Action button: cycle pending → paid, overdue → paid, paid → pending
+  const nextAction = { pending:'paid', overdue:'paid', paid:'pending' };
+  const actionLabel = { pending:'Оплачен', overdue:'Оплачен', paid:'Сбросить' };
+
   document.getElementById('invoicesList').innerHTML = list.map(inv => `
     <div class="invoice-item">
       <div class="invoice-num" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);min-width:50px">#${(inv.id||'').slice(-4)}</div>
       <div class="invoice-info"><div class="invoice-client">${getClientName(inv.clientId)}</div><div class="invoice-period" style="font-size:12px;color:var(--text2)">${inv.period||''}</div></div>
       <div class="invoice-amount" style="font-family:'DM Mono',monospace;font-size:16px;color:var(--accent2)">€${inv.amount||0}</div>
-      <div class="${statusClass[inv.status]||''}" style="font-size:12px;font-weight:500">${statusLabel[inv.status]||'—'}</div>
+      <div class="${statusClass[inv.status]||''}" style="font-size:12px;font-weight:500;min-width:84px;text-align:right">${statusLabel[inv.status]||'—'}</div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="client-link-btn" onclick="setInvoiceStatus('${inv.id}','${nextAction[inv.status]||'paid'}')">${actionLabel[inv.status]||'Оплачен'}</button>
+        <button class="client-link-btn" onclick="downloadInvoicePdf('${inv.id}')">📄 PDF</button>
+      </div>
     </div>`).join('') || '<div style="color:var(--text3);font-size:13px;padding:16px">Нет счетов</div>';
 
-  // Bar chart
-  const months = ['Дек','Янв','Фев','Мар','Апр','Май'];
-  const revenue = Object.values(State.properties).reduce((s, p) => s + (TARIFF_PRICE[p.tariff]||0), 0);
-  const vals = [Math.round(revenue*0.6), Math.round(revenue*0.65), Math.round(revenue*0.75), Math.round(revenue*0.85), Math.round(revenue*0.9), revenue];
-  const max = Math.max(...vals);
-  document.getElementById('barChart').innerHTML = months.map((m, i) => `
+  // Bar chart — last 6 months of actually-paid revenue, fallback to projection
+  renderRevenueChart(list);
+}
+
+function renderRevenueChart(list) {
+  const now = new Date();
+  const cols = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const label = d.toLocaleDateString('ru-RU', { month:'long', year:'numeric' });
+    const short = d.toLocaleDateString('ru-RU', { month:'short' });
+    const val = list.filter(inv => inv.status === 'paid' && inv.period === label).reduce((s,inv)=>s+(inv.amount||0),0);
+    cols.push({ short, val });
+  }
+  // If no paid history yet, show projected revenue from active tariffs so chart isn't empty
+  const hasData = cols.some(c => c.val > 0);
+  if (!hasData) {
+    const projected = Object.values(State.properties).reduce((s,p)=>s+(TARIFF_PRICE[p.tariff]||0),0);
+    cols.forEach((c,i) => { c.val = Math.round(projected * (0.6 + i*0.08)); c.projected = true; });
+  }
+  const max = Math.max(...cols.map(c=>c.val), 1);
+  document.getElementById('barChart').innerHTML = cols.map(c => `
     <div class="bar-col">
-      <div class="bar-val">€${vals[i]}</div>
-      <div class="bar-fill" style="height:${max ? Math.round((vals[i]/max)*80) : 4}px"></div>
-      <div class="bar-label">${m}</div>
+      <div class="bar-val">€${c.val}</div>
+      <div class="bar-fill${c.projected?' projected':''}" style="height:${Math.round((c.val/max)*80)||4}px"></div>
+      <div class="bar-label">${c.short}</div>
     </div>`).join('');
+}
+
+async function setInvoiceStatus(id, status) {
+  await DB.update(`invoices/${id}`, { status, paidAt: status === 'paid' ? Date.now() : null });
+  showToast(status === 'paid' ? '✅ Счёт отмечен оплаченным' : '↺ Статус сброшен');
+}
+
+// Pending invoices from a previous month become "overdue"
+function markOverdueInvoices() {
+  const curId = ym(); // e.g. 2026_5
+  Object.values(State.invoices).forEach(inv => {
+    if (inv.status !== 'pending') return;
+    // invoice id format: <propId>_<year>_<month>; compare period token
+    const token = (inv.id||'').split('_').slice(-2).join('_');
+    if (token && token !== curId) {
+      DB.update(`invoices/${inv.id}`, { status: 'overdue' }).catch(()=>{});
+    }
+  });
+}
+
+// Generate monthly invoices for all properties (idempotent per property+period)
+async function generateMonthlyInvoices() {
+  const period = ymLabel();
+  const props = Object.values(State.properties);
+  let created = 0;
+  for (const p of props) {
+    const invId = `${p.id}_${ym()}`;
+    if (State.invoices[invId]) continue; // already exists this month
+    await DB.set(`invoices/${invId}`, {
+      id: invId, propId: p.id, clientId: p.clientId,
+      period, amount: TARIFF_PRICE[p.tariff] || 0,
+      status: 'pending', createdAt: Date.now()
+    });
+    created++;
+  }
+  showToast(created ? `✅ Создано счетов: ${created}` : 'Счета на этот месяц уже есть');
+  if (created) await pushNotification(`◎ Сгенерированы счета за ${period} (${created})`, 'info');
+}
+
+function downloadInvoicePdf(id) {
+  const inv = State.invoices[id];
+  if (!inv) return;
+  const p = State.properties[inv.propId] || {};
+  const agency = State.settings.agency || {};
+  const statusLabel = { paid:'ОПЛАЧЕН', pending:'ОЖИДАЕТ ОПЛАТЫ', overdue:'ПРОСРОЧЕН' };
+  const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Счёт #${(inv.id||'').slice(-4)}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a2332;padding:48px;max-width:760px;margin:0 auto;font-size:14px}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0d6b5f;padding-bottom:24px;margin-bottom:32px}
+    .brand{font-size:26px;font-weight:700;color:#0d6b5f}
+    .brand small{display:block;font-size:12px;color:#6b7785;font-weight:400;margin-top:4px}
+    .inv-meta{text-align:right;font-size:13px;color:#6b7785;line-height:1.7}
+    .inv-no{font-size:20px;font-weight:700;color:#1a2332}
+    .row{display:flex;justify-content:space-between;margin-bottom:28px;gap:40px}
+    .block-title{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9aa5b1;margin-bottom:6px}
+    .block p{line-height:1.6}
+    table{width:100%;border-collapse:collapse;margin:24px 0}
+    th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9aa5b1;border-bottom:2px solid #e2e8f0;padding:10px 0}
+    td{padding:14px 0;border-bottom:1px solid #eef2f6}
+    .amt{text-align:right;font-weight:600}
+    .total{display:flex;justify-content:flex-end;margin-top:20px}
+    .total-box{min-width:240px}
+    .total-row{display:flex;justify-content:space-between;padding:8px 0}
+    .total-grand{font-size:22px;font-weight:700;color:#0d6b5f;border-top:2px solid #0d6b5f;padding-top:12px;margin-top:4px}
+    .status{display:inline-block;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;letter-spacing:.04em}
+    .status.paid{background:#d8f5ec;color:#0d6b5f}
+    .status.pending{background:#fff3d6;color:#9a6b00}
+    .status.overdue{background:#ffe0e0;color:#b32020}
+    .foot{margin-top:48px;padding-top:20px;border-top:1px solid #eef2f6;color:#9aa5b1;font-size:12px;text-align:center}
+  </style></head><body>
+    <div class="head">
+      <div><div class="brand">🏛 ${agency.name||'CyprusGuard Agency'}<small>Home Check-up Service</small></div></div>
+      <div class="inv-meta"><div class="inv-no">Счёт #${(inv.id||'').slice(-4)}</div><div>${inv.period||''}</div><div>${formatDate(inv.createdAt)}</div></div>
+    </div>
+    <div class="row">
+      <div class="block"><div class="block-title">Исполнитель</div><p>${agency.name||'CyprusGuard Agency'}<br>${agency.city||'Limassol, Cyprus'}<br>${agency.phone||''}</p></div>
+      <div class="block" style="text-align:right"><div class="block-title">Плательщик</div><p>${getClientName(inv.clientId)}<br>${p.address||''}</p></div>
+    </div>
+    <table>
+      <thead><tr><th>Услуга</th><th>Период</th><th class="amt">Сумма</th></tr></thead>
+      <tbody><tr><td>Присмотр за объектом — тариф ${TARIFF_LABELS[p.tariff]||p.tariff||'—'}</td><td>${inv.period||''}</td><td class="amt">€${inv.amount||0}</td></tr></tbody>
+    </table>
+    <div class="total"><div class="total-box">
+      <div class="total-row"><span>Подытог</span><span>€${inv.amount||0}</span></div>
+      <div class="total-row"><span>НДС</span><span>—</span></div>
+      <div class="total-row total-grand"><span>Итого</span><span>€${inv.amount||0}</span></div>
+      <div style="text-align:right;margin-top:14px"><span class="status ${inv.status}">${statusLabel[inv.status]||''}</span></div>
+    </div></div>
+    <div class="foot">Спасибо, что доверяете нам свой дом. ${agency.name||'CyprusGuard'} · ${agency.phone||''}</div>
+    <script>window.onload=()=>{window.print()}<\/script>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Разрешите всплывающие окна для PDF'); return; }
+  w.document.write(html); w.document.close();
 }
 
 // ── SETTINGS ─────────────────────────────────────────────────

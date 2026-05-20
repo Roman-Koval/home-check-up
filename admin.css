@@ -128,3 +128,20 @@
 .inv-paid   { color: var(--teal); }
 .inv-pending { color: var(--orange); }
 .inv-overdue { color: var(--red); }
+
+/* ── DETAIL MODALS (property / visit) ───────────────────────── */
+.detail-head { display: flex; gap: 14px; align-items: center; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.detail-stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+.detail-stat-val { font-size: 16px; font-weight: 500; color: var(--text); }
+.detail-stat-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.detail-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); }
+.detail-row:last-child { border-bottom: none; }
+
+/* ── CALENDAR: clickable cells ──────────────────────────────── */
+.cal-cell { cursor: pointer; transition: background 0.15s; }
+.cal-cell:hover:not(.other-month) { background: rgba(255,255,255,0.05); }
+.cal-cell.has-visits { font-weight: 600; }
+
+/* ── BAR CHART: projected (estimated) bars ──────────────────── */
+.bar-fill.projected { opacity: 0.45; background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 8px); }
