@@ -59,17 +59,92 @@ async function getClientProps(clientId) {
   return Object.values(all).filter(p => p.clientId === clientId);
 }
 
-// ── KEYBOARDS ────────────────────────────────────────────────
-const clientKb = {
-  reply_markup: {
-    keyboard: [
-      ['🏠 Мой объект', '📋 Последний отчёт'],
-      ['📅 Следующий визит', '📬 Заявка'],
-    ],
-    resize_keyboard: true,
-  }
+// ── I18N (bot messages, per client language) ─────────────────
+const T = {
+  ru: {
+    welcome: (n, list) => `🏛 *CyprusGuard*\n\nПривет, *${n}*! 👋\n\nВаши объекты:\n${list}`,
+    noProps: '  Нет объектов',
+    unknown: (n, u, id) => `🏛 *CyprusGuard*\n\nПривет, ${n}! 👋\n\nЯ бот агентства по управлению недвижимостью на Кипре.\n\nЧтобы получить доступ, свяжитесь с агентством:\n📞 +357 99 123 456\n\nВаш Telegram: @${u || 'нет username'}\nВаш chat ID: \`${id}\``,
+    noObjects: 'У вас нет объектов',
+    objHeader: (addr, status, tariff, next) => `🏠 *${addr}*\n\nСтатус: ${status}\nТариф: ${tariff}\nСледующий визит: ${next}`,
+    notPlanned: 'не запланирован',
+    noReports: 'Отчётов пока нет',
+    lastReport: (addr, date, cond, tasks, comment) => `📋 *Последний отчёт*\n\n📍 ${addr}\n📅 ${date}\n\n*Состояние:* ${cond}\n\n*Выполнено:*\n${tasks}\n\n📝 ${comment}`,
+    noVisits: '📅 Нет запланированных визитов',
+    nextVisit: (addr, date, type, tasks) => `📅 *Следующий визит*\n\n📍 ${addr}\n🗓 ${date}\nТип: ${type}\n\n*Задачи:*\n${tasks}`,
+    requestPrompt: '📬 Чтобы оставить заявку — напишите её следующим сообщением, начав со слова «Заявка:»\n\nНапример:\n_Заявка: течёт кран на кухне_',
+    requestAccepted: '✅ Заявка принята! Мы свяжемся с вами в течение 24 часов.',
+    notRegistered: (id) => `❌ Вы не зарегистрированы.\n\nВаш chat ID: \`${id}\`\n\nСообщите его агентству: +357 99 123 456`,
+    condOk: '✅ Всё в порядке', condWarning: '⚠️ Замечание', condIssue: '❌ Проблема',
+    statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
+    typePlanned: 'Плановый', requestKeyword: 'заявка:',
+    kb: [['🏠 Мой объект', '📋 Последний отчёт'], ['📅 Следующий визит', '📬 Заявка']],
+  },
+  en: {
+    welcome: (n, list) => `🏛 *CyprusGuard*\n\nHello, *${n}*! 👋\n\nYour properties:\n${list}`,
+    noProps: '  No properties',
+    unknown: (n, u, id) => `🏛 *CyprusGuard*\n\nHello, ${n}! 👋\n\nI'm the bot of a property management agency in Cyprus.\n\nTo get access, contact the agency:\n📞 +357 99 123 456\n\nYour Telegram: @${u || 'no username'}\nYour chat ID: \`${id}\``,
+    noObjects: 'You have no properties',
+    objHeader: (addr, status, tariff, next) => `🏠 *${addr}*\n\nStatus: ${status}\nPlan: ${tariff}\nNext visit: ${next}`,
+    notPlanned: 'not scheduled',
+    noReports: 'No reports yet',
+    lastReport: (addr, date, cond, tasks, comment) => `📋 *Latest report*\n\n📍 ${addr}\n📅 ${date}\n\n*Condition:* ${cond}\n\n*Completed:*\n${tasks}\n\n📝 ${comment}`,
+    noVisits: '📅 No scheduled visits',
+    nextVisit: (addr, date, type, tasks) => `📅 *Next visit*\n\n📍 ${addr}\n🗓 ${date}\nType: ${type}\n\n*Tasks:*\n${tasks}`,
+    requestPrompt: '📬 To submit a request — send it as your next message starting with "Request:"\n\nExample:\n_Request: kitchen tap is leaking_',
+    requestAccepted: '✅ Request received! We will contact you within 24 hours.',
+    notRegistered: (id) => `❌ You are not registered.\n\nYour chat ID: \`${id}\`\n\nShare it with the agency: +357 99 123 456`,
+    condOk: '✅ All good', condWarning: '⚠️ Note', condIssue: '❌ Issue',
+    statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
+    typePlanned: 'Scheduled', requestKeyword: 'request:',
+    kb: [['🏠 My property', '📋 Latest report'], ['📅 Next visit', '📬 Request']],
+  },
+  de: {
+    welcome: (n, list) => `🏛 *CyprusGuard*\n\nHallo, *${n}*! 👋\n\nIhre Objekte:\n${list}`,
+    noProps: '  Keine Objekte',
+    unknown: (n, u, id) => `🏛 *CyprusGuard*\n\nHallo, ${n}! 👋\n\nIch bin der Bot einer Immobilienverwaltung auf Zypern.\n\nFür Zugang kontaktieren Sie die Agentur:\n📞 +357 99 123 456\n\nIhr Telegram: @${u || 'kein Username'}\nIhre chat ID: \`${id}\``,
+    noObjects: 'Sie haben keine Objekte',
+    objHeader: (addr, status, tariff, next) => `🏠 *${addr}*\n\nStatus: ${status}\nTarif: ${tariff}\nNächster Besuch: ${next}`,
+    notPlanned: 'nicht geplant',
+    noReports: 'Noch keine Berichte',
+    lastReport: (addr, date, cond, tasks, comment) => `📋 *Letzter Bericht*\n\n📍 ${addr}\n📅 ${date}\n\n*Zustand:* ${cond}\n\n*Erledigt:*\n${tasks}\n\n📝 ${comment}`,
+    noVisits: '📅 Keine geplanten Besuche',
+    nextVisit: (addr, date, type, tasks) => `📅 *Nächster Besuch*\n\n📍 ${addr}\n🗓 ${date}\nTyp: ${type}\n\n*Aufgaben:*\n${tasks}`,
+    requestPrompt: '📬 Um eine Anfrage zu senden — schreiben Sie sie als nächste Nachricht, beginnend mit "Anfrage:"\n\nBeispiel:\n_Anfrage: Wasserhahn in der Küche tropft_',
+    requestAccepted: '✅ Anfrage erhalten! Wir melden uns innerhalb von 24 Stunden.',
+    notRegistered: (id) => `❌ Sie sind nicht registriert.\n\nIhre chat ID: \`${id}\`\n\nTeilen Sie sie der Agentur mit: +357 99 123 456`,
+    condOk: '✅ Alles in Ordnung', condWarning: '⚠️ Hinweis', condIssue: '❌ Problem',
+    statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
+    typePlanned: 'Geplant', requestKeyword: 'anfrage:',
+    kb: [['🏠 Mein Objekt', '📋 Letzter Bericht'], ['📅 Nächster Besuch', '📬 Anfrage']],
+  },
+  fr: {
+    welcome: (n, list) => `🏛 *CyprusGuard*\n\nBonjour, *${n}* ! 👋\n\nVos biens :\n${list}`,
+    noProps: '  Aucun bien',
+    unknown: (n, u, id) => `🏛 *CyprusGuard*\n\nBonjour, ${n} ! 👋\n\nJe suis le bot d'une agence de gestion immobilière à Chypre.\n\nPour obtenir l'accès, contactez l'agence :\n📞 +357 99 123 456\n\nVotre Telegram : @${u || 'pas de username'}\nVotre chat ID : \`${id}\``,
+    noObjects: 'Vous n\'avez aucun bien',
+    objHeader: (addr, status, tariff, next) => `🏠 *${addr}*\n\nStatut : ${status}\nForfait : ${tariff}\nProchaine visite : ${next}`,
+    notPlanned: 'non planifiée',
+    noReports: 'Pas encore de rapports',
+    lastReport: (addr, date, cond, tasks, comment) => `📋 *Dernier rapport*\n\n📍 ${addr}\n📅 ${date}\n\n*État :* ${cond}\n\n*Effectué :*\n${tasks}\n\n📝 ${comment}`,
+    noVisits: '📅 Aucune visite planifiée',
+    nextVisit: (addr, date, type, tasks) => `📅 *Prochaine visite*\n\n📍 ${addr}\n🗓 ${date}\nType : ${type}\n\n*Tâches :*\n${tasks}`,
+    requestPrompt: '📬 Pour envoyer une demande — écrivez-la dans votre prochain message en commençant par "Demande :"\n\nExemple :\n_Demande : le robinet de la cuisine fuit_',
+    requestAccepted: '✅ Demande reçue ! Nous vous contacterons sous 24 heures.',
+    notRegistered: (id) => `❌ Vous n'êtes pas enregistré.\n\nVotre chat ID : \`${id}\`\n\nCommuniquez-le à l'agence : +357 99 123 456`,
+    condOk: '✅ Tout va bien', condWarning: '⚠️ Remarque', condIssue: '❌ Problème',
+    statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
+    typePlanned: 'Planifiée', requestKeyword: 'demande:',
+    kb: [['🏠 Mon bien', '📋 Dernier rapport'], ['📅 Prochaine visite', '📬 Demande']],
+  },
 };
 
+function tr(lang) { return T[lang] || T.ru; }
+function clientKbFor(lang) { return { reply_markup: { keyboard: tr(lang).kb, resize_keyboard: true } }; }
+// All request keywords across languages, so the catch-all works regardless of UI language
+const REQUEST_KEYWORDS = ['заявка:', 'request:', 'anfrage:', 'demande:'];
+
+// ── KEYBOARDS ────────────────────────────────────────────────
 const adminKb = {
   reply_markup: {
     keyboard: [
@@ -104,46 +179,48 @@ bot.onText(/\/start/, async (msg) => {
 
   if (client) {
     await update(`clients/${client.id}`, { tgChatId: String(chatId) });
+    const lang = client.lang || 'ru';
     const props = await getClientProps(client.id);
-    const list = props.map(p => `  • ${p.address}`).join('\n') || '  Нет объектов';
+    const list = props.map(p => `  • ${p.address}`).join('\n') || tr(lang).noProps;
     return bot.sendMessage(chatId,
-      `🏛 *CyprusGuard*\n\nПривет, *${client.name}*! 👋\n\nВаши объекты:\n${list}`,
-      { parse_mode: 'Markdown', ...clientKb }
+      tr(lang).welcome(client.name, list),
+      { parse_mode: 'Markdown', ...clientKbFor(lang) }
     );
   }
 
   // Unknown user
   return bot.sendMessage(chatId,
-    `🏛 *CyprusGuard*\n\nПривет, ${name}! 👋\n\nЯ бот агентства по управлению недвижимостью на Кипре.\n\nЧтобы получить доступ, свяжитесь с агентством:\n📞 +357 99 123 456\n\nВаш Telegram: @${tgUser || 'нет username'}\nВаш chat ID: \`${chatId}\``,
+    tr('ru').unknown(name, tgUser, chatId),
     { parse_mode: 'Markdown' }
   );
 });
 
-// ── CLIENT COMMANDS ──────────────────────────────────────────
+// ── CLIENT COMMANDS (matched by emoji, language-independent) ──
 
-bot.onText(/🏠 Мой объект/, async (msg) => {
+bot.onText(/🏠/, async (msg) => {
+  if (String(msg.chat.id) === String(ADMIN_ID)) return; // admin has own 🏠 button
   const client = await findClientByChatId(msg.chat.id);
   if (!client) return notRegistered(msg.chat.id);
+  const lang = client.lang || 'ru';
 
   const props = await getClientProps(client.id);
-  if (!props.length) return bot.sendMessage(msg.chat.id, 'У вас нет объектов', clientKb);
+  if (!props.length) return bot.sendMessage(msg.chat.id, tr(lang).noObjects, clientKbFor(lang));
 
   const p = props[0];
-  const emoji = { ok:'✅', warning:'⚠️', issue:'❌' };
+  const statusEmoji = { ok:tr(lang).statusOk, warning:tr(lang).statusWarning, issue:tr(lang).statusIssue };
   const tariff = { basic:'Basic (€50)', standard:'Standard (€75)', premium:'Premium (€100)' };
 
   return bot.sendMessage(msg.chat.id,
-    `🏠 *${p.address}*\n\n` +
-    `Статус: ${emoji[p.status]||'✅'}\n` +
-    `Тариф: ${tariff[p.tariff]||p.tariff}\n` +
-    `Следующий визит: ${p.nextVisit || 'не запланирован'}`,
-    { parse_mode: 'Markdown', ...clientKb }
+    tr(lang).objHeader(p.address, statusEmoji[p.status]||tr(lang).statusOk, tariff[p.tariff]||p.tariff, p.nextVisit || tr(lang).notPlanned),
+    { parse_mode: 'Markdown', ...clientKbFor(lang) }
   );
 });
 
-bot.onText(/📋 Последний отчёт/, async (msg) => {
+bot.onText(/📋/, async (msg) => {
+  if (String(msg.chat.id) === String(ADMIN_ID)) return;
   const client = await findClientByChatId(msg.chat.id);
   if (!client) return notRegistered(msg.chat.id);
+  const lang = client.lang || 'ru';
 
   const props = await getClientProps(client.id);
   const propIds = props.map(p => p.id);
@@ -152,22 +229,24 @@ bot.onText(/📋 Последний отчёт/, async (msg) => {
     .filter(r => propIds.includes(r.propId))
     .sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
 
-  if (!reports.length) return bot.sendMessage(msg.chat.id, 'Отчётов пока нет', clientKb);
+  if (!reports.length) return bot.sendMessage(msg.chat.id, tr(lang).noReports, clientKbFor(lang));
 
   const r = reports[0];
   const p = props.find(pr => pr.id === r.propId) || {};
-  const cond = { ok:'✅ Всё в порядке', warning:'⚠️ Замечание', issue:'❌ Проблема' };
+  const cond = { ok:tr(lang).condOk, warning:tr(lang).condWarning, issue:tr(lang).condIssue };
   const tasks = (r.tasks||[]).map(t => `  ✓ ${t}`).join('\n');
 
   return bot.sendMessage(msg.chat.id,
-    `📋 *Последний отчёт*\n\n📍 ${p.address}\n📅 ${formatDate(r.date||r.createdAt)}\n\n*Состояние:* ${cond[r.condition]||'—'}\n\n*Выполнено:*\n${tasks}\n\n📝 ${r.comment||'—'}`,
-    { parse_mode: 'Markdown', ...clientKb }
+    tr(lang).lastReport(p.address, formatDate(r.date||r.createdAt), cond[r.condition]||'—', tasks, r.comment||'—'),
+    { parse_mode: 'Markdown', ...clientKbFor(lang) }
   );
 });
 
-bot.onText(/📅 Следующий визит/, async (msg) => {
+bot.onText(/📅/, async (msg) => {
+  if (String(msg.chat.id) === String(ADMIN_ID)) return;
   const client = await findClientByChatId(msg.chat.id);
   if (!client) return notRegistered(msg.chat.id);
+  const lang = client.lang || 'ru';
 
   const props = await getClientProps(client.id);
   const propIds = props.map(p => p.id);
@@ -176,37 +255,39 @@ bot.onText(/📅 Следующий визит/, async (msg) => {
     .filter(v => propIds.includes(v.propId) && v.status !== 'done')
     .sort((a,b) => a.date > b.date ? 1 : -1);
 
-  if (!upcoming.length) return bot.sendMessage(msg.chat.id, '📅 Нет запланированных визитов', clientKb);
+  if (!upcoming.length) return bot.sendMessage(msg.chat.id, tr(lang).noVisits, clientKbFor(lang));
 
   const v = upcoming[0];
   const p = props.find(pr => pr.id === v.propId) || {};
   const tasks = (v.tasks||[]).map(t => `  • ${t}`).join('\n');
 
   return bot.sendMessage(msg.chat.id,
-    `📅 *Следующий визит*\n\n📍 ${p.address}\n🗓 ${v.date}\nТип: ${v.type||'Плановый'}\n\n*Задачи:*\n${tasks}`,
-    { parse_mode: 'Markdown', ...clientKb }
+    tr(lang).nextVisit(p.address, v.date, v.type||tr(lang).typePlanned, tasks),
+    { parse_mode: 'Markdown', ...clientKbFor(lang) }
   );
 });
 
-bot.onText(/📬 Заявка/, async (msg) => {
+bot.onText(/📬/, async (msg) => {
+  if (String(msg.chat.id) === String(ADMIN_ID)) return;
   const client = await findClientByChatId(msg.chat.id);
   if (!client) return notRegistered(msg.chat.id);
-  return bot.sendMessage(msg.chat.id,
-    `📬 Чтобы оставить заявку — напишите её следующим сообщением, начав со слова «Заявка:»\n\nНапример:\n_Заявка: течёт кран на кухне_`,
-    { parse_mode: 'Markdown', ...clientKb }
-  );
+  const lang = client.lang || 'ru';
+  return bot.sendMessage(msg.chat.id, tr(lang).requestPrompt, { parse_mode: 'Markdown', ...clientKbFor(lang) });
 });
 
-// Catch-all for "Заявка:" messages
+// Catch-all for "Заявка:/Request:/Anfrage:/Demande:" messages
 bot.on('message', async (msg) => {
-  const text = msg.text || '';
-  if (!text.toLowerCase().startsWith('заявка:')) return;
+  const text = (msg.text || '').trim();
+  const lower = text.toLowerCase();
+  const matched = REQUEST_KEYWORDS.find(kw => lower.startsWith(kw));
+  if (!matched) return;
 
   const client = await findClientByChatId(msg.chat.id);
   if (!client) return;
+  const lang = client.lang || 'ru';
 
   const props = await getClientProps(client.id);
-  const content = text.slice(7).trim();
+  const content = text.slice(matched.length).trim();
   const id = 'req_' + Date.now();
 
   await set(`requests/${id}`, {
@@ -216,7 +297,8 @@ bot.on('message', async (msg) => {
     createdAt: Date.now()
   });
 
-  // Notify admin
+  // Notify admin (the realtime child_added listener below also fires;
+  // this immediate ping covers the case the listener missed it)
   if (ADMIN_ID) {
     bot.sendMessage(ADMIN_ID,
       `📬 *Новая заявка*\n\nОт: ${client.name}\nОбъект: ${props[0]?.address||'—'}\n\n${content}`,
@@ -224,10 +306,7 @@ bot.on('message', async (msg) => {
     ).catch(()=>{});
   }
 
-  return bot.sendMessage(msg.chat.id,
-    `✅ Заявка принята! Мы свяжемся с вами в течение 24 часов.`,
-    clientKb
-  );
+  return bot.sendMessage(msg.chat.id, tr(lang).requestAccepted, clientKbFor(lang));
 });
 
 // ── ADMIN COMMANDS ───────────────────────────────────────────
@@ -329,10 +408,7 @@ bot.onText(/📤 Разослать отчёт/, async (msg) => {
 
 // ── HELPERS ──────────────────────────────────────────────────
 function notRegistered(chatId) {
-  return bot.sendMessage(chatId,
-    `❌ Вы не зарегистрированы.\n\nВаш chat ID: \`${chatId}\`\n\nСообщите его агентству: +357 99 123 456`,
-    { parse_mode: 'Markdown' }
-  );
+  return bot.sendMessage(chatId, tr('ru').notRegistered(chatId), { parse_mode: 'Markdown' });
 }
 
 function formatDate(val) {
@@ -370,7 +446,9 @@ db.ref('requests').on('child_added', async (snap) => {
   const client = Object.values(clients).find(c => c.id === req.clientId);
   const prop = props[req.propId];
 
-  const text = `📬 *Новая заявка!*\n\n*${req.title}*\n\n👤 ${client?.name || '—'}\n🏠 ${prop?.address || '—'}\n\n${req.description || ''}`;
+  const urgent = req.priority === 'urgent' || req.type === 'urgent';
+  const head = urgent ? '🚨 *СРОЧНАЯ заявка!*' : '📬 *Новая заявка!*';
+  const text = `${head}\n\n*${req.title}*\n\n👤 ${client?.name || '—'}\n🏠 ${prop?.address || '—'}\n\n${req.description || ''}`;
 
   bot.sendMessage(ADMIN_ID, text, { parse_mode: 'Markdown' }).catch(e =>
     console.error('Admin notify failed:', e.message)
@@ -380,3 +458,45 @@ db.ref('requests').on('child_added', async (snap) => {
 });
 
 console.log('✅ Bot handlers registered. Waiting for messages…');
+
+// ── 24H VISIT REMINDERS ──────────────────────────────────────
+// Checks once per hour for visits happening "tomorrow" and notifies the
+// client once (guarded by a _reminded flag). Respects the notifyReminder toggle.
+async function checkReminders() {
+  try {
+    const settings = await get('settings/telegram') || {};
+    if (settings.notifyReminder === false) return;
+    const token = settings.token;
+    if (!token) return;
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const ds = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
+
+    const [visits, props, clients] = await Promise.all([
+      get('visits').then(v => v||{}),
+      get('properties').then(v => v||{}),
+      get('clients').then(v => Object.values(v||{})),
+    ]);
+
+    for (const [vid, v] of Object.entries(visits)) {
+      if (v.date !== ds || v.status === 'done' || v._reminded) continue;
+      const prop = props[v.propId];
+      if (!prop) continue;
+      const client = clients.find(c => c.id === prop.clientId);
+      if (!client || !client.tgChatId) continue;
+
+      const tasks = (v.tasks||[]).map(t => `  • ${t}`).join('\n');
+      const msg = `🏛 *CyprusGuard — напоминание*\n\n📅 Завтра запланирован визит на ваш объект:\n📍 ${prop.address}\n\n*Задачи:*\n${tasks || '  • Плановый осмотр'}`;
+      await bot.sendMessage(client.tgChatId, msg, { parse_mode: 'Markdown' }).catch(()=>{});
+      await update(`visits/${vid}`, { _reminded: true });
+      console.log(`⏰ Reminder sent for visit ${vid} → ${client.name}`);
+    }
+  } catch(e) {
+    console.error('Reminder check failed:', e.message);
+  }
+}
+
+// Run shortly after startup, then hourly
+setTimeout(checkReminders, 15000);
+setInterval(checkReminders, 60 * 60 * 1000);
