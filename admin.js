@@ -937,16 +937,31 @@ function renderCalendar() {
 }
 
 function onCalendarDayClick(ds) {
-  const dayV = Object.values(State.visits).filter(v => v.date === ds);
+  const dayV = Object.values(State.visits).filter(v => v.date === ds).sort((a,b)=>(a.type>b.type?1:-1));
   if (dayV.length === 1) { openVisitDetail(dayV[0].id); return; }
-  if (dayV.length > 1) {
-    // Scroll detailed list to that month and highlight nothing fancy — just open first
-    openVisitDetail(dayV[0].id);
-    return;
-  }
+  if (dayV.length > 1) { openDayVisits(ds, dayV); return; }
   // No visits — offer to create one on this date
   document.getElementById('visitDate').value = ds;
   openModal('addVisitModal');
+}
+
+function openDayVisits(ds, dayV) {
+  const SL = { planned:'Запланирован', urgent:'Срочно', issue:'Проблема', done:'Выполнен' };
+  const SC = { planned:'status-planned', urgent:'status-urgent', issue:'status-issue', done:'status-done' };
+  document.getElementById('dayVisitsTitle').textContent = formatDate(ds);
+  document.getElementById('dayVisitsBody').innerHTML = dayV.map(v => {
+    const p = State.properties[v.propId] || {};
+    return `<div class="detail-row" style="cursor:pointer" onclick="closeModal('dayVisitsModal');openVisitDetail('${v.id}')">
+      <span>${p.address||v.propId} · ${v.type||''}</span>
+      <span class="status-badge ${SC[v.status]||'status-planned'}">${SL[v.status]||'—'}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('dayVisitsAddBtn').onclick = () => {
+    closeModal('dayVisitsModal');
+    document.getElementById('visitDate').value = ds;
+    openModal('addVisitModal');
+  };
+  openModal('dayVisitsModal');
 }
 
 // ── REPORTS ──────────────────────────────────────────────────
@@ -1171,17 +1186,28 @@ function openRequest(id) {
       <div><div class="form-label">Дата заявки</div><div>${formatDate(r.createdAt)}</div></div>
       <div><div class="form-label">Статус</div><span class="status-badge ${r.status==='done'?'status-done':r.status==='inprogress'?'status-urgent':'status-planned'}">${r.status==='done'?'Выполнена':r.status==='inprogress'?'В работе':'Новая'}</span></div>
     </div>`;
-  document.getElementById('acceptRequestBtn').textContent = r.status === 'inprogress' ? '✅ Отметить выполненной' : '🔧 Принять в работу';
+  const btn = document.getElementById('acceptRequestBtn');
+  if (r.status === 'done') {
+    btn.textContent = '↺ Вернуть в работу';
+  } else if (r.status === 'inprogress') {
+    btn.textContent = '✅ Отметить выполненной';
+  } else {
+    btn.textContent = '🔧 Принять в работу';
+  }
   openModal('requestModal');
 }
 
 async function acceptRequest() {
   if (!State.currentReqId) return;
   const r = State.requests[State.currentReqId];
-  const newStatus = r?.status === 'inprogress' ? 'done' : 'inprogress';
+  // new → inprogress → done → (reopen) inprogress
+  let newStatus;
+  if (r?.status === 'new' || !r?.status) newStatus = 'inprogress';
+  else if (r?.status === 'inprogress')   newStatus = 'done';
+  else                                    newStatus = 'inprogress'; // reopen from done
   await DB.update(`requests/${State.currentReqId}`, { status: newStatus });
   closeModal('requestModal');
-  showToast(newStatus === 'done' ? '✅ Заявка выполнена!' : '🔧 Заявка принята в работу!');
+  showToast(newStatus === 'done' ? '✅ Заявка выполнена!' : '🔧 Заявка в работе!');
 
   // Notify client
   const p = State.properties[r.propId] || {};
@@ -1384,11 +1410,11 @@ function renderBilling() {
 
   document.getElementById('invoicesList').innerHTML = list.map(inv => `
     <div class="invoice-item">
-      <div class="invoice-num" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);min-width:50px">#${(inv.id||'').slice(-4)}</div>
-      <div class="invoice-info"><div class="invoice-client">${getClientName(inv.clientId)}</div><div class="invoice-period" style="font-size:12px;color:var(--text2)">${inv.period||''}</div></div>
-      <div class="invoice-amount" style="font-family:'DM Mono',monospace;font-size:16px;color:var(--accent2)">€${inv.amount||0}</div>
-      <div class="${statusClass[inv.status]||''}" style="font-size:12px;font-weight:500;min-width:84px;text-align:right">${statusLabel[inv.status]||'—'}</div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
+      <div class="invoice-num">#${(inv.id||'').slice(-4)}</div>
+      <div class="invoice-info"><div class="invoice-client">${getClientName(inv.clientId)}</div><div class="invoice-period">${inv.period||''}</div></div>
+      <div class="invoice-amount">€${inv.amount||0}</div>
+      <div class="invoice-status-cell ${statusClass[inv.status]||''}">${statusLabel[inv.status]||'—'}</div>
+      <div class="invoice-actions">
         <button class="client-link-btn" onclick="setInvoiceStatus('${inv.id}','${nextAction[inv.status]||'paid'}')">${actionLabel[inv.status]||'Оплачен'}</button>
         <button class="client-link-btn" onclick="downloadInvoicePdf('${inv.id}')">📄 PDF</button>
       </div>

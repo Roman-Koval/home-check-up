@@ -438,14 +438,25 @@ select.settings-input option { background: var(--bg2); }
 .invoice-item {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 14px 16px;
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
 }
-.invoice-num { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text3); min-width: 60px; }
-.invoice-info { flex: 1; }
+.invoice-num { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text3); min-width: 50px; }
+.invoice-info { flex: 1; min-width: 120px; }
 .invoice-client { font-size: 14px; font-weight: 500; }
 .invoice-period { font-size: 12px; color: var(--text2); }
 .invoice-amount { font-family: 'DM Mono', monospace; font-size: 16px; color: var(--accent2); }
+.invoice-status-cell { font-size: 12px; font-weight: 500; min-width: 84px; text-align: right; }
+.invoice-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .invoice-status { font-size: 11px; }
+
+/* On narrow screens, wrap status + buttons onto their own full-width row */
+@media (max-width: 560px) {
+  .invoice-item { gap: 8px 10px; }
+  .invoice-num { min-width: 0; }
+  .invoice-amount { margin-left: auto; }
+  .invoice-status-cell { min-width: 0; flex: 1; text-align: left; order: 5; }
+  .invoice-actions { order: 6; width: 100%; justify-content: flex-end; }
+}
 
 .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 100px; padding: 0 4px; }
 .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -783,6 +794,4 @@ textarea.form-input { resize: vertical; min-height: 70px; }
 .checklist-done { display: flex; flex-direction: column; gap: 4px; }
 .check-item { display: flex; gap: 6px; font-size: 13px; color: var(--teal); }
 
-/* ===== INVOICES ===== */
-.invoices-list { display: flex; flex-direction: column; gap: 8px; }
-.invoice-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+/* ===== INVOICES (layout defined earlier; see responsive block) ===== */
