@@ -39,6 +39,10 @@ const bot = new TelegramBot(TOKEN, {
     autoStart: true,
     params: { timeout: 30 },
   },
+  // Keep the underlying HTTP agent from giving up on transient errors
+  request: {
+    agentOptions: { keepAlive: true },
+  },
 });
 
 // Clear any leftover webhook (a set webhook silently blocks polling and is a
@@ -430,7 +434,25 @@ function formatDate(val) {
   return d.toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' });
 }
 
-// Catch errors with actionable diagnostics
+// Catch errors with actionable diagnostics + auto-recover from network drops
+let restarting = false;
+async function restartPolling(reason) {
+  if (restarting) return;
+  restarting = true;
+  console.error(`🔄 Restarting polling (${reason})…`);
+  try {
+    await bot.stopPolling({ cancel: true }).catch(() => {});
+    await new Promise(r => setTimeout(r, 3000));
+    await bot.startPolling();
+    console.log('✅ Polling restarted');
+  } catch (e) {
+    console.error('Restart failed, retrying in 10s:', e.message);
+    setTimeout(() => { restarting = false; restartPolling('retry'); }, 10000);
+    return;
+  }
+  restarting = false;
+}
+
 bot.on('polling_error', (err) => {
   const code = err.code || '';
   const msg = err.message || String(err);
@@ -439,16 +461,19 @@ bot.on('polling_error', (err) => {
   if (code === 'ETELEGRAM' && /409/.test(msg)) {
     console.error('🛑 CONFLICT 409: another bot instance is using this token.');
     console.error('   → Stop all other copies (local + hosting), redeploy ONE instance.');
+    // Do NOT auto-restart on 409 — that would fight the other instance.
   } else if (/401/.test(msg)) {
     console.error('🛑 UNAUTHORIZED 401: BOT_TOKEN is wrong or revoked. Check env var.');
-  } else if (code === 'EFATAL' || /ENOTFOUND|ETIMEDOUT|ECONNRESET/.test(msg)) {
-    console.error('🌐 Network issue reaching Telegram — will keep retrying.');
+  } else if (code === 'EFATAL' || /ENOTFOUND|ETIMEDOUT|ECONNRESET|socket hang up|network/i.test(msg)) {
+    console.error('🌐 Network issue reaching Telegram — recovering…');
+    restartPolling(code || 'network');
   }
 });
 
 bot.on('error', (err) => console.error('⚠️ Bot error:', err.message || err));
 
-process.on('unhandledRejection', (r) => console.error('⚠️ Unhandled rejection:', r));
+process.on('unhandledRejection', (r) => console.error('⚠️ Unhandled rejection:', r && r.message ? r.message : r));
+process.on('uncaughtException',  (e) => console.error('⚠️ Uncaught exception:', e && e.message ? e.message : e));
 
 // ── SAFE REALTIME: only NEW requests after bot startup ───────
 const BOT_START = Date.now();
