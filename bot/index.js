@@ -33,7 +33,20 @@ const db = admin.database();
 console.log('✅ Firebase connected');
 
 // ── BOT ──────────────────────────────────────────────────────
-const bot = new TelegramBot(TOKEN, { polling: true });
+const bot = new TelegramBot(TOKEN, {
+  polling: {
+    interval: 1000,
+    autoStart: true,
+    params: { timeout: 30 },
+  },
+});
+
+// Clear any leftover webhook (a set webhook silently blocks polling and is a
+// common reason the bot "doesn't respond"). Safe to call every startup.
+bot.deleteWebHook({ drop_pending_updates: false })
+  .then(() => console.log('🧹 Webhook cleared (polling mode active)'))
+  .catch(e => console.warn('deleteWebHook warning:', e.message));
+
 console.log('🤖 Bot started in polling mode');
 
 // ── DB HELPERS ───────────────────────────────────────────────
@@ -417,10 +430,25 @@ function formatDate(val) {
   return d.toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' });
 }
 
-// Catch errors
+// Catch errors with actionable diagnostics
 bot.on('polling_error', (err) => {
-  console.error('Polling error:', err.code, err.message);
+  const code = err.code || '';
+  const msg = err.message || String(err);
+  console.error('⚠️ Polling error:', code, msg);
+
+  if (code === 'ETELEGRAM' && /409/.test(msg)) {
+    console.error('🛑 CONFLICT 409: another bot instance is using this token.');
+    console.error('   → Stop all other copies (local + hosting), redeploy ONE instance.');
+  } else if (/401/.test(msg)) {
+    console.error('🛑 UNAUTHORIZED 401: BOT_TOKEN is wrong or revoked. Check env var.');
+  } else if (code === 'EFATAL' || /ENOTFOUND|ETIMEDOUT|ECONNRESET/.test(msg)) {
+    console.error('🌐 Network issue reaching Telegram — will keep retrying.');
+  }
 });
+
+bot.on('error', (err) => console.error('⚠️ Bot error:', err.message || err));
+
+process.on('unhandledRejection', (r) => console.error('⚠️ Unhandled rejection:', r));
 
 // ── SAFE REALTIME: only NEW requests after bot startup ───────
 const BOT_START = Date.now();
