@@ -1,0 +1,14 @@
+{
+  "_comment": "CyprusGuard — правила Realtime Database. Эта версия сохраняет ОТКРЫТЫЙ доступ (как в текущем проекте: клиентский портал читает данные без входа, по токену из URL) и лишь добавляет индексы, чтобы убрать предупреждения FIREBASE WARNING про unspecified index. Если позже будете закрывать доступ — делайте это осторожно, иначе клиентский портал перестанет читать БД.",
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "reports":     { ".indexOn": ["createdAt", "propId", "visitId", "clientId"] },
+    "requests":    { ".indexOn": ["createdAt", "clientId", "propId", "status"] },
+    "visits":      { ".indexOn": ["date", "propId", "status"] },
+    "properties":  { ".indexOn": ["clientId", "tariff", "status"] },
+    "invoices":    { ".indexOn": ["createdAt", "clientId", "propId", "status", "period"] },
+    "clients":     { ".indexOn": ["tgChatId", "accessToken", "lang"] },
+    "notifications": { ".indexOn": ["createdAt"] }
+  }
+}

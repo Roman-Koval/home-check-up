@@ -6,7 +6,7 @@
 //    - Images (Firebase Storage)    → Cache with Network fallback
 // ================================================================
 
-const CACHE_NAME = 'cyprusguard-v5';
+const CACHE_NAME = 'cyprusguard-v6';
 const OFFLINE_URL = '/offline.html';
 
 const SHELL_ASSETS = [
@@ -53,6 +53,9 @@ self.addEventListener('fetch', event => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
+  // Only handle http(s) — Cache API rejects chrome-extension:, data:, blob: etc.
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
   // Firebase / API calls → Network Only (no caching)
   if (
     url.hostname.includes('firebaseio.com') ||
@@ -92,9 +95,9 @@ self.addEventListener('fetch', event => {
 async function networkFirst(request) {
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
+    if (response && response.ok && request.url.startsWith('http')) {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(request, response.clone());
+      cache.put(request, response.clone()).catch(() => {});
     }
     return response;
   } catch (e) {
@@ -111,9 +114,9 @@ async function cacheFirst(request) {
 
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    if (response.ok && request.url.startsWith('http')) {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(request, response.clone());
+      cache.put(request, response.clone()).catch(() => {});
     }
     return response;
   } catch {
