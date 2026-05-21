@@ -23,7 +23,10 @@ const State = {
   reportSearch: '',
   currentReqId: null,
   currentReportId: null,
+  currentClientId: null,
+  currentVisitId: null,
   editingPropId: null,
+  editingClientId: null,
   uploadedPhotos: [],   // { file, dataUrl, storageUrl }
   uploadedVideo: null,
   deferredInstall: null,
@@ -236,6 +239,8 @@ function bindAppEvents() {
   document.getElementById('acceptRequestBtn').addEventListener('click', acceptRequest);
   // Send report TG
   document.getElementById('sendReportTgBtn').addEventListener('click', sendReportTelegram);
+  // Report PDF
+  document.getElementById('reportPdfBtn')?.addEventListener('click', () => { if (State.currentReportId) downloadReportPdf(State.currentReportId); });
 
   // Photos
   document.getElementById('photoInput').addEventListener('change', handlePhotoSelect);
@@ -297,6 +302,11 @@ function handleAdd() {
     State.editingPropId = null;
     document.getElementById('propModalTitle').textContent = 'Новый объект';
     clearForm(['propAddress','propNotes']);
+  }
+  if (State.page === 'clients') {
+    State.editingClientId = null;
+    document.querySelector('#addClientModal .modal-title').textContent = 'Новый клиент';
+    clearForm(['clientName','clientCountry','clientPhone','clientTg']);
   }
   openModal(map[State.page] || 'addVisitModal');
 }
@@ -463,7 +473,59 @@ function openPropertyDetail(id) {
   document.getElementById('propDetailVisitBtn').onclick = () => { closeModal('propertyDetailModal'); scheduleVisit(id); };
   document.getElementById('propDetailEditBtn').onclick = () => { closeModal('propertyDetailModal'); editProperty(id); };
   document.getElementById('propDetailDeleteBtn').onclick = () => deleteProperty(id);
+  document.getElementById('propDetailRecurBtn').onclick = () => generateRecurringVisits(id);
   openModal('propertyDetailModal');
+}
+
+// Recurring visits per tariff. Basic = every 2 weeks (≈2/mo),
+// Standard = weekly (≈4/mo), Premium = weekly. Generates the next ~4 weeks
+// of visits, skipping dates that already have a visit for this property.
+const TARIFF_INTERVAL_DAYS = { basic: 14, standard: 7, premium: 7 };
+const TARIFF_DEFAULT_TASKS = {
+  basic:    ['Проветривание', 'Проверка замков', 'Фотофиксация'],
+  standard: ['Проветривание', 'Полив растений', 'Проверка счетов', 'Фотофиксация'],
+  premium:  ['Проветривание', 'Полив растений', 'Проверка счетов', 'Фотофиксация', 'Проверка замков'],
+};
+
+async function generateRecurringVisits(propId) {
+  const p = State.properties[propId];
+  if (!p) return;
+  const interval = TARIFF_INTERVAL_DAYS[p.tariff] || 14;
+  const tasks = TARIFF_DEFAULT_TASKS[p.tariff] || TARIFF_DEFAULT_TASKS.basic;
+  const horizonDays = 28; // ~1 month ahead
+  const perMonth = p.tariff === 'basic' ? 2 : 4;
+
+  if (!confirm(`Создать график визитов на месяц вперёд для тарифа ${TARIFF_LABELS[p.tariff]||p.tariff} (≈${perMonth} визита, раз в ${interval} дн.)?`)) return;
+
+  // Existing visit dates for this property to avoid duplicates
+  const existing = new Set(Object.values(State.visits).filter(v => v.propId === propId).map(v => v.date));
+
+  // Start from nextVisit if it's in the future, else from interval days from today
+  const today = new Date(); today.setHours(0,0,0,0);
+  let start = p.nextVisit ? new Date(p.nextVisit) : new Date(today.getTime() + interval*86400000);
+  if (isNaN(start) || start < today) start = new Date(today.getTime() + interval*86400000);
+
+  let created = 0;
+  for (let day = 0; day <= horizonDays; day += interval) {
+    const d = new Date(start.getTime() + day*86400000);
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (existing.has(ds)) continue;
+    const id = 'v' + Date.now() + '_' + created;
+    await DB.set(`visits/${id}`, {
+      id, propId, date: ds, type: 'planned',
+      notes: 'Авто-визит по тарифу', tasks: [...tasks], status: 'planned', recurring: true
+    });
+    existing.add(ds);
+    created++;
+  }
+
+  closeModal('propertyDetailModal');
+  showToast(created ? `✅ Создано визитов: ${created}` : 'Визиты на этот период уже есть');
+  if (created) {
+    await pushNotification(`🔁 Сгенерирован график визитов: ${p.address} (${created})`, 'info');
+    // Notify client
+    tryTgNotify(propId, `📅 Запланирован график визитов на ближайший месяц (${created})`);
+  }
 }
 
 function editProperty(id) {
@@ -561,27 +623,123 @@ async function saveVisit() {
 }
 
 // ── CLIENTS ──────────────────────────────────────────────────
+function clientMonthly(clientId) {
+  return Object.values(State.properties)
+    .filter(p => p.clientId === clientId)
+    .reduce((s, p) => s + (TARIFF_PRICE[p.tariff] || 0), 0);
+}
+
 function renderClients() {
   const list = Object.values(State.clients);
-  document.getElementById('clientsList').innerHTML = list.map(c => `
-    <div class="client-card" onclick="showClientLink('${c.id}')">
+  document.getElementById('clientsList').innerHTML = list.map(c => {
+    const monthly = clientMonthly(c.id);
+    const propCount = Object.values(State.properties).filter(p => p.clientId === c.id).length;
+    const tgDot = c.tgChatId ? '🟢' : '⚪';
+    return `
+    <div class="client-card" onclick="openClientDetail('${c.id}')">
       <div class="client-avatar" style="background:${c.color||'#4fc3a1'}22;color:${c.color||'#4fc3a1'}">${initials(c.name)}</div>
       <div class="client-info">
-        <div class="client-name">${c.name}</div>
+        <div class="client-name">${c.name} <span style="font-size:11px">${tgDot}</span></div>
         <div class="client-country">${c.country||''} · ${c.tg||'—'}</div>
-        <div class="client-props">📱 ${c.phone||'—'}</div>
+        <div class="client-props">📱 ${c.phone||'—'} · ⌂ ${propCount}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div class="client-monthly">€${c.monthly||0}</div>
+        <div class="client-monthly">€${monthly}</div>
         <div style="font-size:10px;color:var(--text3)">в месяц</div>
         <button class="client-link-btn" style="margin-top:6px" onclick="event.stopPropagation();showClientLink('${c.id}')">🔗 Портал</button>
       </div>
-    </div>`).join('') || '<div class="empty-state"><div style="font-size:48px">👤</div><div>Нет клиентов</div><button class="btn-primary" onclick="openModal(\'addClientModal\')">+ Добавить</button></div>';
+    </div>`;
+  }).join('') || '<div class="empty-state"><div style="font-size:48px">👤</div><div>Нет клиентов</div><button class="btn-primary" onclick="openModal(\'addClientModal\')">+ Добавить</button></div>';
+}
+
+function openClientDetail(id) {
+  const c = State.clients[id];
+  if (!c) return;
+  State.currentClientId = id;
+  const props = Object.values(State.properties).filter(p => p.clientId === id);
+  const propIds = props.map(p => p.id);
+  const visits = Object.values(State.visits).filter(v => propIds.includes(v.propId)).sort((a,b)=>a.date>b.date?-1:1);
+  const reports = Object.values(State.reports).filter(r => propIds.includes(r.propId)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const requests = Object.values(State.requests).filter(r => r.clientId === id).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const monthly = clientMonthly(id);
+  const LANG_LABELS = { ru:'Русский', en:'English', de:'Deutsch', fr:'Français' };
+
+  const propsHtml = props.map(p => `<div class="detail-row" style="cursor:pointer" onclick="closeModal('clientDetailModal');openPropertyDetail('${p.id}')"><span>${TYPE_ICONS[p.type||'apt']} ${p.address}</span><span>${TARIFF_LABELS[p.tariff]||p.tariff} · €${TARIFF_PRICE[p.tariff]||0}</span></div>`).join('') || '<div style="color:var(--text3);font-size:13px">Нет объектов</div>';
+  const reportsHtml = reports.slice(0,5).map(r => {
+    const cond = { ok:'✅', warning:'⚠️', issue:'❌' };
+    const p = State.properties[r.propId] || {};
+    return `<div class="detail-row" style="cursor:pointer" onclick="closeModal('clientDetailModal');openReport('${r.id}')"><span>${formatDate(r.date||r.createdAt)} · ${p.address||''}</span><span>${cond[r.condition]||'—'}</span></div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:13px">Отчётов нет</div>';
+
+  document.getElementById('clientDetailTitle').textContent = c.name;
+  document.getElementById('clientDetailBody').innerHTML = `
+    <div class="detail-head">
+      <div class="client-avatar" style="width:52px;height:52px;font-size:18px;background:${c.color||'#4fc3a1'}22;color:${c.color||'#4fc3a1'}">${initials(c.name)}</div>
+      <div>
+        <div style="font-size:16px;font-weight:500">${c.name}</div>
+        <div style="font-size:13px;color:var(--text2)">${c.country||''} · ${LANG_LABELS[c.lang]||c.lang||'—'}</div>
+        <div style="margin-top:4px;font-size:12px;color:var(--text3)">${c.tgChatId ? '🟢 Подключён к Telegram' : '⚪ Не подключён к боту'}</div>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-stat"><div class="detail-stat-val">€${monthly}</div><div class="detail-stat-lbl">в месяц</div></div>
+      <div class="detail-stat"><div class="detail-stat-val">${props.length}</div><div class="detail-stat-lbl">объектов</div></div>
+      <div class="detail-stat"><div class="detail-stat-val">${reports.length}</div><div class="detail-stat-lbl">отчётов</div></div>
+    </div>
+    <div class="report-section"><div class="report-section-title">Контакты</div><div style="font-size:13px;color:var(--text2)">📱 ${c.phone||'—'} · ${c.tg||'—'}</div></div>
+    <div class="report-section"><div class="report-section-title">Объекты</div>${propsHtml}</div>
+    <div class="report-section"><div class="report-section-title">Последние отчёты</div>${reportsHtml}</div>
+    <div class="report-section"><div class="report-section-title">Активность</div><div style="font-size:13px;color:var(--text2)">Визитов: ${visits.length} · Заявок: ${requests.length}</div></div>
+  `;
+  document.getElementById('clientDetailPortalBtn').onclick = () => { closeModal('clientDetailModal'); showClientLink(id); };
+  document.getElementById('clientDetailEditBtn').onclick = () => { closeModal('clientDetailModal'); editClient(id); };
+  document.getElementById('clientDetailDeleteBtn').onclick = () => deleteClient(id);
+  openModal('clientDetailModal');
+}
+
+function editClient(id) {
+  const c = State.clients[id];
+  if (!c) return;
+  State.editingClientId = id;
+  document.querySelector('#addClientModal .modal-title').textContent = 'Редактировать клиента';
+  document.getElementById('clientName').value = c.name || '';
+  document.getElementById('clientCountry').value = c.country || '';
+  document.getElementById('clientPhone').value = c.phone || '';
+  document.getElementById('clientTg').value = c.tg || '';
+  document.getElementById('clientLang').value = c.lang || 'ru';
+  openModal('addClientModal');
+}
+
+async function deleteClient(id) {
+  const props = Object.values(State.properties).filter(p => p.clientId === id);
+  if (props.length) { showToast(`Сначала удалите объекты клиента (${props.length})`); return; }
+  if (!confirm('Удалить клиента?')) return;
+  await DB.remove(`clients/${id}`);
+  closeModal('clientDetailModal');
+  showToast('🗑 Клиент удалён');
 }
 
 async function saveClient() {
   const name = document.getElementById('clientName').value.trim();
   if (!name) { showToast('Введите имя'); return; }
+
+  // Edit mode
+  if (State.editingClientId) {
+    await DB.update(`clients/${State.editingClientId}`, {
+      name,
+      country: document.getElementById('clientCountry').value.trim(),
+      phone:   document.getElementById('clientPhone').value.trim(),
+      tg:      document.getElementById('clientTg').value.trim(),
+      lang:    document.getElementById('clientLang').value,
+    });
+    State.editingClientId = null;
+    document.querySelector('#addClientModal .modal-title').textContent = 'Новый клиент';
+    closeModal('addClientModal');
+    clearForm(['clientName','clientCountry','clientPhone','clientTg']);
+    showToast('✅ Клиент обновлён!');
+    return;
+  }
+
   const token = 'tok-' + Math.random().toString(36).slice(2, 10);
   const colors = ['#4fc3a1','#f0a500','#9b8db0','#5e81ff','#e05c5c','#c9a84c'];
   const data = {
@@ -1358,6 +1516,78 @@ function downloadInvoicePdf(id) {
   const w = window.open('', '_blank');
   if (!w) { showToast('Разрешите всплывающие окна для PDF'); return; }
   w.document.write(html); w.document.close();
+}
+
+function downloadReportPdf(id) {
+  const r = State.reports[id];
+  if (!r) return;
+  const p = State.properties[r.propId] || {};
+  const client = State.clients[p.clientId] || {};
+  const agency = State.settings.agency || {};
+  const condConf = {
+    ok:    { label:'Всё в порядке',    cls:'ok',    icon:'✅' },
+    warning:{ label:'Есть замечания',   cls:'warning',icon:'⚠️' },
+    issue: { label:'Обнаружена проблема',cls:'issue', icon:'❌' },
+  };
+  const cc = condConf[r.condition] || condConf.ok;
+  const tasksHtml = (r.tasks||[]).map(t => `<li>${escapeHtml(t)}</li>`).join('') || '<li>—</li>';
+  const photosHtml = (r.photoUrls||[]).length
+    ? `<div class="photos">${r.photoUrls.map(u => `<img src="${u}"/>`).join('')}</div>`
+    : '';
+  const TL = { planned:'Плановый осмотр', urgent:'Срочный выезд', initial:'Первичный осмотр', seasonal:'Завершение сезона' };
+  const visit = State.visits[r.visitId] || {};
+
+  const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Отчёт о визите — ${escapeHtml(p.address||'')}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a2332;padding:48px;max-width:780px;margin:0 auto;font-size:14px;line-height:1.5}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0d6b5f;padding-bottom:24px;margin-bottom:28px}
+    .brand{font-size:26px;font-weight:700;color:#0d6b5f}
+    .brand small{display:block;font-size:12px;color:#6b7785;font-weight:400;margin-top:4px}
+    .meta{text-align:right;font-size:13px;color:#6b7785;line-height:1.7}
+    .meta .ttl{font-size:18px;font-weight:700;color:#1a2332}
+    .row{display:flex;justify-content:space-between;gap:40px;margin-bottom:24px}
+    .block-title{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9aa5b1;margin-bottom:6px}
+    .status{display:inline-block;padding:8px 16px;border-radius:8px;font-size:14px;font-weight:700;margin:8px 0 20px}
+    .status.ok{background:#d8f5ec;color:#0d6b5f}
+    .status.warning{background:#fff3d6;color:#9a6b00}
+    .status.issue{background:#ffe0e0;color:#b32020}
+    .section{margin-bottom:22px}
+    h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#9aa5b1;border-bottom:1px solid #eef2f6;padding-bottom:6px;margin-bottom:10px}
+    ul{list-style:none}
+    li{padding:5px 0 5px 24px;position:relative}
+    li:before{content:'✓';position:absolute;left:0;color:#0d6b5f;font-weight:700}
+    .comment{background:#f7f9fb;border-radius:8px;padding:14px;color:#34404e}
+    .photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+    .photos img{width:100%;height:140px;object-fit:cover;border-radius:8px;border:1px solid #eef2f6}
+    .bill{font-size:18px;font-weight:700;color:#0d6b5f}
+    .foot{margin-top:40px;padding-top:18px;border-top:1px solid #eef2f6;color:#9aa5b1;font-size:12px;text-align:center}
+    @media print{.photos img{height:120px}}
+  </style></head><body>
+    <div class="head">
+      <div><div class="brand">🏛 ${escapeHtml(agency.name||'CyprusGuard Agency')}<small>Home Check-up Service</small></div></div>
+      <div class="meta"><div class="ttl">Отчёт о визите</div><div>${formatDate(r.date||r.createdAt)}</div></div>
+    </div>
+    <div class="row">
+      <div><div class="block-title">Объект</div><div><b>${escapeHtml(p.address||'—')}</b><br>${TL[visit.type]||''}</div></div>
+      <div style="text-align:right"><div class="block-title">Владелец</div><div>${escapeHtml(client.name||'—')}<br>${escapeHtml(client.country||'')}</div></div>
+    </div>
+    <div class="block-title">Состояние объекта</div>
+    <div class="status ${cc.cls}">${cc.icon} ${cc.label}</div>
+    <div class="section"><h3>Выполненные работы</h3><ul>${tasksHtml}</ul></div>
+    <div class="section"><h3>Комментарий агента</h3><div class="comment">${escapeHtml(r.comment||'Без комментариев')}</div></div>
+    ${photosHtml ? `<div class="section"><h3>Фотофиксация</h3>${photosHtml}</div>` : ''}
+    ${r.bill ? `<div class="section"><h3>Счёт за коммунальные услуги</h3><div class="bill">€${r.bill}</div></div>` : ''}
+    <div class="foot">${escapeHtml(agency.name||'CyprusGuard')} · ${escapeHtml(agency.phone||'')} · ${escapeHtml(agency.city||'Limassol, Cyprus')}<br>Документ сформирован автоматически ${formatDate(Date.now())}</div>
+    <script>window.onload=()=>{setTimeout(()=>window.print(),300)}<\/script>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Разрешите всплывающие окна для PDF'); return; }
+  w.document.write(html); w.document.close();
+}
+
+function escapeHtml(s) {
+  return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 // ── SETTINGS ─────────────────────────────────────────────────

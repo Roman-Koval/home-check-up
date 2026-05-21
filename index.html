@@ -363,7 +363,7 @@
   <div class="modal modal-large">
     <div class="modal-header"><div class="modal-title" id="reportModalTitle">Отчёт</div><button class="modal-close" data-modal="reportModal">✕</button></div>
     <div class="modal-body" id="reportModalBody"></div>
-    <div class="modal-footer"><button class="btn-secondary" data-modal="reportModal">Закрыть</button><button class="btn-primary" id="sendReportTgBtn">✈ Отправить в Telegram</button></div>
+    <div class="modal-footer"><button class="btn-secondary" data-modal="reportModal">Закрыть</button><button class="btn-secondary" id="reportPdfBtn">📄 PDF</button><button class="btn-primary" id="sendReportTgBtn">✈ Отправить в Telegram</button></div>
   </div>
 </div>
 
@@ -392,6 +392,7 @@
     <div class="modal-body" id="propertyDetailBody"></div>
     <div class="modal-footer" style="flex-wrap:wrap">
       <button class="btn-secondary" id="propDetailDeleteBtn" style="margin-right:auto">🗑 Удалить</button>
+      <button class="btn-secondary" id="propDetailRecurBtn">🔁 Визиты по тарифу</button>
       <button class="btn-secondary" id="propDetailEditBtn">✎ Изменить</button>
       <button class="btn-primary" id="propDetailVisitBtn">＋ Визит</button>
     </div>
@@ -405,6 +406,18 @@
     <div class="modal-footer" style="flex-wrap:wrap">
       <button class="btn-secondary" id="visitDetailDeleteBtn" style="margin-right:auto">🗑 Удалить</button>
       <button class="btn-primary" id="visitDetailReportBtn">✓ Завершить и создать отчёт</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="clientDetailModal">
+  <div class="modal modal-large">
+    <div class="modal-header"><div class="modal-title" id="clientDetailTitle">Клиент</div><button class="modal-close" data-modal="clientDetailModal">✕</button></div>
+    <div class="modal-body" id="clientDetailBody"></div>
+    <div class="modal-footer" style="flex-wrap:wrap">
+      <button class="btn-secondary" id="clientDetailDeleteBtn" style="margin-right:auto">🗑 Удалить</button>
+      <button class="btn-secondary" id="clientDetailPortalBtn">🔗 Портал</button>
+      <button class="btn-primary" id="clientDetailEditBtn">✎ Изменить</button>
     </div>
   </div>
 </div>
