@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v10-2026-05-22';
+const BOT_VERSION = 'v11-2026-05-22';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -96,6 +96,8 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Следующий визит*\n\n📍 ${addr}\n🗓 ${date}\nТип: ${type}\n\n*Задачи:*\n${tasks}`,
     requestPrompt: '📬 Чтобы оставить заявку — напишите её следующим сообщением, начав со слова «Заявка:»\n\nНапример:\n_Заявка: течёт кран на кухне_',
     requestAccepted: '✅ Заявка принята! Мы свяжемся с вами в течение 24 часов.',
+    reqInProgress: (t) => `🔧 Ваша заявка взята в работу:\n«${t}»\n\nМы уже занимаемся ей.`,
+    reqDone: (t) => `✅ Ваша заявка выполнена:\n«${t}»\n\nСпасибо, что обратились!`,
     notRegistered: (id) => `❌ Вы не зарегистрированы.\n\nВаш chat ID: \`${id}\`\n\nСообщите его агентству: +357 99 123 456`,
     condOk: '✅ Всё в порядке', condWarning: '⚠️ Замечание', condIssue: '❌ Проблема',
     statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
@@ -115,6 +117,8 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Next visit*\n\n📍 ${addr}\n🗓 ${date}\nType: ${type}\n\n*Tasks:*\n${tasks}`,
     requestPrompt: '📬 To submit a request — send it as your next message starting with "Request:"\n\nExample:\n_Request: kitchen tap is leaking_',
     requestAccepted: '✅ Request received! We will contact you within 24 hours.',
+    reqInProgress: (t) => `🔧 Your request is now in progress:\n"${t}"\n\nWe're working on it.`,
+    reqDone: (t) => `✅ Your request is completed:\n"${t}"\n\nThank you!`,
     notRegistered: (id) => `❌ You are not registered.\n\nYour chat ID: \`${id}\`\n\nShare it with the agency: +357 99 123 456`,
     condOk: '✅ All good', condWarning: '⚠️ Note', condIssue: '❌ Issue',
     statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
@@ -134,6 +138,8 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Nächster Besuch*\n\n📍 ${addr}\n🗓 ${date}\nTyp: ${type}\n\n*Aufgaben:*\n${tasks}`,
     requestPrompt: '📬 Um eine Anfrage zu senden — schreiben Sie sie als nächste Nachricht, beginnend mit "Anfrage:"\n\nBeispiel:\n_Anfrage: Wasserhahn in der Küche tropft_',
     requestAccepted: '✅ Anfrage erhalten! Wir melden uns innerhalb von 24 Stunden.',
+    reqInProgress: (t) => `🔧 Ihre Anfrage ist in Bearbeitung:\n"${t}"\n\nWir kümmern uns darum.`,
+    reqDone: (t) => `✅ Ihre Anfrage ist erledigt:\n"${t}"\n\nVielen Dank!`,
     notRegistered: (id) => `❌ Sie sind nicht registriert.\n\nIhre chat ID: \`${id}\`\n\nTeilen Sie sie der Agentur mit: +357 99 123 456`,
     condOk: '✅ Alles in Ordnung', condWarning: '⚠️ Hinweis', condIssue: '❌ Problem',
     statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
@@ -153,6 +159,8 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Prochaine visite*\n\n📍 ${addr}\n🗓 ${date}\nType : ${type}\n\n*Tâches :*\n${tasks}`,
     requestPrompt: '📬 Pour envoyer une demande — écrivez-la dans votre prochain message en commençant par "Demande :"\n\nExemple :\n_Demande : le robinet de la cuisine fuit_',
     requestAccepted: '✅ Demande reçue ! Nous vous contacterons sous 24 heures.',
+    reqInProgress: (t) => `🔧 Votre demande est en cours :\n"${t}"\n\nNous nous en occupons.`,
+    reqDone: (t) => `✅ Votre demande est terminée :\n"${t}"\n\nMerci !`,
     notRegistered: (id) => `❌ Vous n'êtes pas enregistré.\n\nVotre chat ID : \`${id}\`\n\nCommuniquez-le à l'agence : +357 99 123 456`,
     condOk: '✅ Tout va bien', condWarning: '⚠️ Remarque', condIssue: '❌ Problème',
     statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
@@ -561,6 +569,30 @@ db.ref('requests').on('child_added', async (snap) => {
   console.log(`📬 New request notified: ${req.title}`);
 });
 
+// REQUEST STATUS CHANGED → notify the client in their language.
+// Fires regardless of whether the change came from the bot buttons or the website.
+db.ref('requests').on('child_changed', async (snap) => {
+  if (!warmedUp) return;
+  const req = snap.val();
+  if (!req || !req.status) return;
+  // Only react to meaningful status changes, and avoid re-sending the same one
+  if (req._lastNotifiedStatus === req.status) return;
+  if (req.status !== 'inprogress' && req.status !== 'done') return;
+
+  await snap.ref.update({ _lastNotifiedStatus: req.status });
+
+  const clients = await get('clients') || {};
+  const client = Object.values(clients).find(c => c.id === req.clientId);
+  if (!client || !client.tgChatId) return;
+
+  const lang = client.lang || 'ru';
+  const msg = req.status === 'done'
+    ? tr(lang).reqDone(req.title || '')
+    : tr(lang).reqInProgress(req.title || '');
+  bot.sendMessage(client.tgChatId, msg, { parse_mode: 'Markdown' }).catch(()=>{});
+  console.log(`🔔 Client notified about status "${req.status}": ${req.title}`);
+});
+
 // NEW REPORT → notify admin with "send to client" button
 db.ref('reports').on('child_added', async (snap) => {
   if (!warmedUp) return;
@@ -602,6 +634,8 @@ bot.on('callback_query', async (q) => {
         { inline_keyboard: [[{ text: `Статус обновлён: ${label}`, callback_data: 'noop' }]] },
         { chat_id: q.message.chat.id, message_id: q.message.message_id }
       ).catch(()=>{});
+      // Client notification is handled centrally by the requests child_changed
+      // listener, so it fires the same way whether status is changed here or on the site.
       return;
     }
 
