@@ -306,7 +306,7 @@ function handleAdd() {
   if (State.page === 'clients') {
     State.editingClientId = null;
     document.querySelector('#addClientModal .modal-title').textContent = 'Новый клиент';
-    clearForm(['clientName','clientCountry','clientPhone','clientTg']);
+    clearForm(['clientName','clientCountry','clientPhone','clientTg','clientChatId']);
   }
   openModal(map[State.page] || 'addVisitModal');
 }
@@ -706,6 +706,7 @@ function editClient(id) {
   document.getElementById('clientCountry').value = c.country || '';
   document.getElementById('clientPhone').value = c.phone || '';
   document.getElementById('clientTg').value = c.tg || '';
+  document.getElementById('clientChatId').value = c.tgChatId || '';
   document.getElementById('clientLang').value = c.lang || 'ru';
   openModal('addClientModal');
 }
@@ -730,12 +731,13 @@ async function saveClient() {
       country: document.getElementById('clientCountry').value.trim(),
       phone:   document.getElementById('clientPhone').value.trim(),
       tg:      document.getElementById('clientTg').value.trim(),
+      tgChatId: document.getElementById('clientChatId').value.trim(),
       lang:    document.getElementById('clientLang').value,
     });
     State.editingClientId = null;
     document.querySelector('#addClientModal .modal-title').textContent = 'Новый клиент';
     closeModal('addClientModal');
-    clearForm(['clientName','clientCountry','clientPhone','clientTg']);
+    clearForm(['clientName','clientCountry','clientPhone','clientTg','clientChatId']);
     showToast('✅ Клиент обновлён!');
     return;
   }
@@ -749,14 +751,14 @@ async function saveClient() {
     tg:           document.getElementById('clientTg').value.trim(),
     lang:         document.getElementById('clientLang').value,
     accessToken:  token,
-    tgChatId:     '',
+    tgChatId:     document.getElementById('clientChatId').value.trim(),
     color:        colors[Math.floor(Math.random() * colors.length)],
     monthly:      0,
   };
   const id = 'c' + Date.now();
   await DB.set(`clients/${id}`, { ...data, id });
   closeModal('addClientModal');
-  clearForm(['clientName','clientCountry','clientPhone','clientTg']);
+  clearForm(['clientName','clientCountry','clientPhone','clientTg','clientChatId']);
   showToast('✅ Клиент добавлен!');
 }
 
