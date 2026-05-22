@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v9-2026-05-22';
+const BOT_VERSION = 'v10-2026-05-22';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -332,6 +332,38 @@ bot.on('message', async (msg) => {
 });
 
 // ── ADMIN COMMANDS ───────────────────────────────────────────
+
+// Diagnostic: shows your chatId and whether you're recognised as admin
+bot.onText(/\/diag/, async (msg) => {
+  const chatId = msg.chat.id;
+  const isAdmin = String(chatId) === String(ADMIN_ID);
+  const client = await findClientByChatId(chatId);
+  const text =
+    `🔍 *Диагностика*\n\n` +
+    `Ваш chatId: \`${chatId}\`\n` +
+    `ADMIN_CHAT_ID: \`${ADMIN_ID || 'НЕ ЗАДАН'}\`\n` +
+    `Вы админ: ${isAdmin ? '✅ да' : '❌ нет'}\n` +
+    `Вы клиент: ${client ? `✅ да (${client.name})` : '❌ нет'}\n` +
+    `Версия бота: ${BOT_VERSION}`;
+  bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+});
+
+// Diagnostic: admin creates a test request to verify the whole notify→buttons flow
+bot.onText(/\/testreq/, async (msg) => {
+  if (String(msg.chat.id) !== String(ADMIN_ID)) return;
+  const clients = await get('clients') || {};
+  const firstClient = Object.values(clients)[0];
+  if (!firstClient) return bot.sendMessage(msg.chat.id, 'Нет клиентов для теста');
+  const props = await getClientProps(firstClient.id);
+  const id = 'req_test_' + Date.now();
+  await set(`requests/${id}`, {
+    id, clientId: firstClient.id, propId: props[0]?.id || '',
+    type: 'other', title: 'ТЕСТ заявка',
+    description: 'Создано командой /testreq для проверки уведомлений',
+    status: 'new', createdAt: Date.now()
+  });
+  bot.sendMessage(msg.chat.id, '✅ Тестовая заявка создана. Уведомление должно прийти следом…');
+});
 
 bot.onText(/📊 Сводка/, async (msg) => {
   if (String(msg.chat.id) !== String(ADMIN_ID)) return;
