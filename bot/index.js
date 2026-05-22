@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v8-2026-05-21';
+const BOT_VERSION = 'v9-2026-05-22';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -502,11 +502,12 @@ async function warmUp() {
 
 // NEW REQUEST → notify admin with action buttons
 db.ref('requests').on('child_added', async (snap) => {
-  if (!warmedUp) return;            // ignore the initial backlog burst
   const req = snap.val();
+  console.log(`[req fired] id=${snap.key} warmedUp=${warmedUp} notified=${req?._adminNotified}`);
+  if (!warmedUp) return;            // ignore the initial backlog burst
   if (!req || req._adminNotified) return;
   await snap.ref.update({ _adminNotified: true });
-  if (!ADMIN_ID) return;
+  if (!ADMIN_ID) { console.log('⚠️ ADMIN_ID not set — cannot notify'); return; }
 
   const clients = await get('clients') || {};
   const props = await get('properties') || {};
