@@ -1,11 +1,16 @@
 // ================================================================
-//  bot/index.js  —  CyprusGuard Telegram Bot (SIMPLIFIED v2)
-//  Only responds to commands. No auto-broadcast. No realtime listeners.
-//  This avoids the rate-limit loop entirely.
+//  bot/index.js  —  CyprusGuard Telegram Bot
+//  Multilingual (RU/EN/DE/FR). Polling with auto-recovery.
+//  Notifies admin on NEW requests only (created after bot start).
 // ================================================================
 
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
+
+const BOT_VERSION = 'v8-2026-05-21';
+console.log('====================================================');
+console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
+console.log('====================================================');
 
 // ── ENV ──────────────────────────────────────────────────────
 const TOKEN     = process.env.BOT_TOKEN;
@@ -475,23 +480,32 @@ bot.on('error', (err) => console.error('⚠️ Bot error:', err.message || err))
 process.on('unhandledRejection', (r) => console.error('⚠️ Unhandled rejection:', r && r.message ? r.message : r));
 process.on('uncaughtException',  (e) => console.error('⚠️ Uncaught exception:', e && e.message ? e.message : e));
 
-// ── SAFE REALTIME: only NEW requests after bot startup ───────
-const BOT_START = Date.now();
-console.log(`⏰ Bot start time: ${BOT_START}`);
+// ── REALTIME NOTIFICATIONS ───────────────────────────────────
+// On first boot, mark everything that already exists as "notified" so we
+// don't spam the admin with the backlog. After that, any genuinely new
+// child fires a notification. This does NOT rely on clock sync (the old
+// BOT_START approach silently dropped requests when times were close).
+let warmedUp = false;
 
+async function warmUp() {
+  const [reqs, reps] = await Promise.all([
+    get('requests').then(v => v || {}),
+    get('reports').then(v => v || {}),
+  ]);
+  const updates = {};
+  for (const id of Object.keys(reqs)) if (!reqs[id]._adminNotified) updates[`requests/${id}/_adminNotified`] = true;
+  for (const id of Object.keys(reps)) if (!reps[id]._adminNotified) updates[`reports/${id}/_adminNotified`] = true;
+  if (Object.keys(updates).length) await db.ref().update(updates);
+  warmedUp = true;
+  console.log(`✅ Warm-up done. Existing items marked (requests:${Object.keys(reqs).length}, reports:${Object.keys(reps).length}). Now watching for NEW ones.`);
+}
+
+// NEW REQUEST → notify admin with action buttons
 db.ref('requests').on('child_added', async (snap) => {
+  if (!warmedUp) return;            // ignore the initial backlog burst
   const req = snap.val();
-  if (!req || !req.createdAt) return;
-
-  // Skip old requests (created before bot started)
-  if (req.createdAt < BOT_START) return;
-
-  // Skip already notified
-  if (req._adminNotified) return;
-
-  // Mark notified immediately to prevent re-fire
+  if (!req || req._adminNotified) return;
   await snap.ref.update({ _adminNotified: true });
-
   if (!ADMIN_ID) return;
 
   const clients = await get('clients') || {};
@@ -501,16 +515,99 @@ db.ref('requests').on('child_added', async (snap) => {
 
   const urgent = req.priority === 'urgent' || req.type === 'urgent';
   const head = urgent ? '🚨 *СРОЧНАЯ заявка!*' : '📬 *Новая заявка!*';
-  const text = `${head}\n\n*${req.title}*\n\n👤 ${client?.name || '—'}\n🏠 ${prop?.address || '—'}\n\n${req.description || ''}`;
+  const text = `${head}\n\n*${req.title || '—'}*\n\n👤 ${client?.name || '—'}\n🏠 ${prop?.address || '—'}\n\n${req.description || ''}`;
 
-  bot.sendMessage(ADMIN_ID, text, { parse_mode: 'Markdown' }).catch(e =>
-    console.error('Admin notify failed:', e.message)
-  );
+  bot.sendMessage(ADMIN_ID, text, {
+    parse_mode: 'Markdown',
+    reply_markup: { inline_keyboard: [[
+      { text: '🔧 В работу', callback_data: `req:inprogress:${req.id}` },
+      { text: '✅ Выполнено', callback_data: `req:done:${req.id}` },
+    ]] }
+  }).catch(e => console.error('Admin notify failed:', e.message));
 
   console.log(`📬 New request notified: ${req.title}`);
 });
 
+// NEW REPORT → notify admin with "send to client" button
+db.ref('reports').on('child_added', async (snap) => {
+  if (!warmedUp) return;
+  const rep = snap.val();
+  if (!rep || rep._adminNotified) return;
+  await snap.ref.update({ _adminNotified: true });
+  if (!ADMIN_ID) return;
+
+  const props = await get('properties') || {};
+  const clients = await get('clients') || {};
+  const prop = props[rep.propId];
+  const client = prop ? Object.values(clients).find(c => c.id === prop.clientId) : null;
+  const cond = { ok: '✅ Норма', warning: '⚠️ Замечание', issue: '❌ Проблема' };
+
+  const text = `📋 *Новый отчёт создан*\n\n🏠 ${prop?.address || '—'}\n👤 ${client?.name || '—'}\nСостояние: ${cond[rep.condition] || '—'}\n${rep.photoUrls?.length ? `📷 Фото: ${rep.photoUrls.length}` : ''}`;
+
+  const buttons = [];
+  if (client?.tgChatId) buttons.push([{ text: '✈ Отправить клиенту', callback_data: `rep:send:${rep.id}` }]);
+
+  bot.sendMessage(ADMIN_ID, text, {
+    parse_mode: 'Markdown',
+    reply_markup: buttons.length ? { inline_keyboard: buttons } : undefined
+  }).catch(e => console.error('Report notify failed:', e.message));
+
+  console.log(`📋 New report notified: ${prop?.address}`);
+});
+
+// ── INLINE BUTTON HANDLER (manage statuses from chat) ────────
+bot.on('callback_query', async (q) => {
+  try {
+    const [domain, action, id] = (q.data || '').split(':');
+    const fromAdmin = String(q.message.chat.id) === String(ADMIN_ID);
+
+    if (domain === 'req' && fromAdmin) {
+      await update(`requests/${id}`, { status: action });
+      const label = action === 'done' ? '✅ Выполнено' : '🔧 В работе';
+      await bot.answerCallbackQuery(q.id, { text: `Статус: ${label}` });
+      await bot.editMessageReplyMarkup(
+        { inline_keyboard: [[{ text: `Статус обновлён: ${label}`, callback_data: 'noop' }]] },
+        { chat_id: q.message.chat.id, message_id: q.message.message_id }
+      ).catch(()=>{});
+      return;
+    }
+
+    if (domain === 'rep' && action === 'send' && fromAdmin) {
+      const rep = await get(`reports/${id}`);
+      const props = await get('properties') || {};
+      const clients = await get('clients') || {};
+      const prop = rep ? props[rep.propId] : null;
+      const client = prop ? Object.values(clients).find(c => c.id === prop.clientId) : null;
+      if (!client || !client.tgChatId) {
+        return bot.answerCallbackQuery(q.id, { text: 'У клиента нет Telegram', show_alert: true });
+      }
+      const lang = client.lang || 'ru';
+      const cond = { ok: tr(lang).condOk, warning: tr(lang).condWarning, issue: tr(lang).condIssue };
+      const tasks = (rep.tasks || []).map(t => `  ✓ ${t}`).join('\n');
+      await bot.sendMessage(client.tgChatId,
+        tr(lang).lastReport(prop.address, formatDate(rep.date || rep.createdAt), cond[rep.condition] || '—', tasks, rep.comment || '—'),
+        { parse_mode: 'Markdown' }
+      ).catch(()=>{});
+      await update(`reports/${id}`, { sentToClient: true });
+      await bot.answerCallbackQuery(q.id, { text: '✅ Отправлено клиенту' });
+      await bot.editMessageReplyMarkup(
+        { inline_keyboard: [[{ text: '✅ Отправлено клиенту', callback_data: 'noop' }]] },
+        { chat_id: q.message.chat.id, message_id: q.message.message_id }
+      ).catch(()=>{});
+      return;
+    }
+
+    await bot.answerCallbackQuery(q.id).catch(()=>{});
+  } catch (e) {
+    console.error('callback_query error:', e.message);
+    bot.answerCallbackQuery(q.id, { text: 'Ошибка' }).catch(()=>{});
+  }
+});
+
 console.log('✅ Bot handlers registered. Waiting for messages…');
+
+// Warm up after a short delay so initial Firebase sync settles first
+setTimeout(warmUp, 4000);
 
 // ── 24H VISIT REMINDERS ──────────────────────────────────────
 // Checks once per hour for visits happening "tomorrow" and notifies the
