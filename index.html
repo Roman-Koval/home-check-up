@@ -53,15 +53,15 @@
       <button class="sidebar-close" id="sidebarClose">✕</button>
     </div>
     <nav class="sidebar-nav">
-      <a href="#" class="nav-item active" data-page="dashboard"><span class="nav-icon">◈</span>Дашборд</a>
-      <a href="#" class="nav-item" data-page="requests"><span class="nav-icon">📬</span>Заявки<span class="nav-badge" id="reqBadge" style="display:none">0</span></a>
-      <a href="#" class="nav-item" data-page="properties"><span class="nav-icon">⌂</span>Объекты</a>
-      <a href="#" class="nav-item" data-page="visits"><span class="nav-icon">✦</span>Визиты</a>
-      <a href="#" class="nav-item" data-page="reports"><span class="nav-icon">◉</span>Отчёты</a>
-      <a href="#" class="nav-item" data-page="clients"><span class="nav-icon">⊹</span>Клиенты</a>
-      <a href="#" class="nav-item" data-page="telegram"><span class="nav-icon">✈</span>Telegram Bot</a>
-      <a href="#" class="nav-item" data-page="billing"><span class="nav-icon">◎</span>Финансы</a>
-      <a href="#" class="nav-item" data-page="settings"><span class="nav-icon">⚙</span>Настройки</a>
+      <a href="#" class="nav-item active" data-page="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>Дашборд</a>
+      <a href="#" class="nav-item" data-page="requests"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H5.2L4 17.5z"/></svg></span>Заявки<span class="nav-badge" id="reqBadge" style="display:none">0</span></a>
+      <a href="#" class="nav-item" data-page="properties"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg></span>Объекты</a>
+      <a href="#" class="nav-item" data-page="visits"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg></span>Визиты</a>
+      <a href="#" class="nav-item" data-page="reports"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></span>Отчёты</a>
+      <a href="#" class="nav-item" data-page="clients"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>Клиенты</a>
+      <a href="#" class="nav-item" data-page="telegram"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3L2 10l6 3 3 6 2-5 5-3z"/><path d="M8 13l6-5"/></svg></span>Telegram Bot</a>
+      <a href="#" class="nav-item" data-page="billing"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span>Финансы</a>
+      <a href="#" class="nav-item" data-page="settings"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></span>Настройки</a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-card">
@@ -79,6 +79,7 @@
       <button class="menu-btn" id="menuBtn">☰</button>
       <div class="topbar-title" id="pageTitle">Дашборд</div>
       <div class="topbar-actions">
+        <button class="theme-toggle" id="themeToggle" title="Тема">🌙</button>
         <button class="icon-btn notify-btn" id="notifyBtn">🔔<span class="badge" id="notifyBadge" style="display:none">0</span></button>
         <button class="icon-btn" id="addBtn">＋</button>
       </div>
@@ -97,10 +98,10 @@
           <div class="hero-badge"><div style="font-size:36px" id="heroWxIcon">☀️</div><div><div style="font-size:22px;font-weight:300" id="heroWxTemp">—°C</div><div style="font-size:11px;color:var(--text3)" id="heroWxCity">Лимассол</div></div></div>
         </div>
         <div class="kpi-grid">
-          <div class="kpi-card kpi-primary"><div class="kpi-label">Объектов</div><div class="kpi-value" id="kpiProps">—</div><div class="kpi-change positive" id="kpiPropsC"></div></div>
-          <div class="kpi-card"><div class="kpi-label">Доход/месяц</div><div class="kpi-value" id="kpiRev">—</div><div class="kpi-change positive"></div></div>
-          <div class="kpi-card"><div class="kpi-label">Визитов</div><div class="kpi-value" id="kpiVis">—</div><div class="kpi-change" id="kpiVisC"></div></div>
-          <div class="kpi-card kpi-alert"><div class="kpi-label">Заявок</div><div class="kpi-value" id="kpiReq">—</div><div class="kpi-change negative">ожидают ответа</div></div>
+          <div class="kpi-card kpi-primary kpi-clickable" onclick="navigateTo('properties')"><div class="kpi-label">Объектов</div><div class="kpi-value" id="kpiProps">—</div><div class="kpi-change positive" id="kpiPropsC"></div></div>
+          <div class="kpi-card kpi-clickable" onclick="navigateTo('billing')"><div class="kpi-label">Доход/месяц</div><div class="kpi-value" id="kpiRev">—</div><div class="kpi-change positive"></div></div>
+          <div class="kpi-card kpi-clickable" onclick="navigateTo('visits')"><div class="kpi-label">Визитов</div><div class="kpi-value" id="kpiVis">—</div><div class="kpi-change" id="kpiVisC"></div></div>
+          <div class="kpi-card kpi-alert kpi-clickable" onclick="navigateTo('requests')"><div class="kpi-label">Заявок</div><div class="kpi-value" id="kpiReq">—</div><div class="kpi-change negative">ожидают ответа</div></div>
         </div>
         <div class="section-title">Аналитика</div>
         <div id="dashAnalytics" class="analytics-grid"></div>
@@ -230,6 +231,11 @@
           <input type="text" class="settings-input" id="setName" placeholder="CyprusGuard Agency"/>
           <input type="text" class="settings-input" id="setCity" placeholder="Limassol, Cyprus" style="margin-top:8px"/>
           <input type="text" class="settings-input" id="setPhone" placeholder="+357 99 123 456" style="margin-top:8px"/>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+            <label style="font-size:13px;color:var(--text2)">Фирменный цвет:</label>
+            <input type="color" id="setColor" value="#c9a84c" style="width:44px;height:32px;border:none;background:none;cursor:pointer;border-radius:6px"/>
+            <button class="btn-secondary" id="resetColorBtn" style="font-size:12px;padding:6px 10px">Сброс</button>
+          </div>
         </div>
         <div class="settings-group">
           <div class="settings-label">PWA — Установить приложение</div>
@@ -443,6 +449,7 @@
   <div class="notify-list" id="notifyList"><div class="notify-empty">Нет уведомлений</div></div>
 </div>
 
+<button class="fab" id="fabBtn" title="Добавить">＋</button>
 <div class="toast" id="toast"></div>
 
 <script src="firebase-config.js"></script>

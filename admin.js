@@ -178,6 +178,7 @@ function bindAppEvents() {
 
   // + button
   document.getElementById('addBtn').addEventListener('click', handleAdd);
+  document.getElementById('fabBtn')?.addEventListener('click', handleAdd);
 
   // Logout
   document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -267,11 +268,30 @@ function bindAppEvents() {
   // Settings
   document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
   document.getElementById('installPwaBtn').addEventListener('click', installPwa);
+  document.getElementById('setColor')?.addEventListener('input', e => applyBrandColor(e.target.value));
+  document.getElementById('resetColorBtn')?.addEventListener('click', () => {
+    const def = '#c9a84c';
+    const cInput = document.getElementById('setColor');
+    if (cInput) cInput.value = def;
+    applyBrandColor(def);
+  });
 
   // Billing
   document.getElementById('genInvoicesBtn')?.addEventListener('click', generateMonthlyInvoices);
   document.getElementById('exportInvoicesBtn')?.addEventListener('click', exportInvoices);
   document.getElementById('exportClientsBtn')?.addEventListener('click', exportClients);
+
+  // Theme toggle
+  const themeBtn = document.getElementById('themeToggle');
+  if (themeBtn) {
+    const saved = (() => { try { return localStorage.getItem('cg-theme'); } catch(e) { return null; } })();
+    applyTheme(saved === 'light' ? 'light' : 'dark');
+    themeBtn.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      applyTheme(next);
+      try { localStorage.setItem('cg-theme', next); } catch(e) {}
+    });
+  }
 
   // Load settings
   DB.once('settings').then(s => {
@@ -280,6 +300,11 @@ function bindAppEvents() {
       document.getElementById('setName').value  = s.agency.name  || '';
       document.getElementById('setCity').value  = s.agency.city  || '';
       document.getElementById('setPhone').value = s.agency.phone || '';
+      if (s.agency.color) {
+        const cInput = document.getElementById('setColor');
+        if (cInput) cInput.value = s.agency.color;
+        applyBrandColor(s.agency.color);
+      }
     }
     if (s.telegram && s.telegram.token) {
       document.getElementById('tgToken').value = s.telegram.token;
@@ -426,7 +451,21 @@ function renderDashAnalytics() {
       <div class="an-big">${doneThisMonth}<span>/${visitsThisMonth}</span></div>
       <div class="an-sub">выполнено из запланированных</div>
       <div class="an-track" style="margin-top:10px"><div class="an-fill" style="width:${Math.round((doneThisMonth/(visitsThisMonth||1))*100)}%;background:var(--teal,#4fc3a1)"></div></div>
-    </div>`;
+    </div>
+    ${(() => {
+      const invs = Object.values(State.invoices);
+      const overdue = invs.filter(i => i.status === 'overdue');
+      const pending = invs.filter(i => i.status === 'pending');
+      const overdueSum = overdue.reduce((s,i)=>s+(i.amount||0),0);
+      const pendingSum = pending.reduce((s,i)=>s+(i.amount||0),0);
+      if (!overdue.length && !pending.length) return '';
+      return `<div class="an-card" style="${overdue.length?'border-color:var(--red,#e05c5c)':''}">
+        <div class="an-title">Оплаты</div>
+        ${overdue.length ? `<div class="an-row"><div class="an-row-top"><span style="color:var(--red,#e05c5c)">⚠️ Просрочено</span><span>${overdue.length} · €${overdueSum}</span></div></div>` : ''}
+        ${pending.length ? `<div class="an-row"><div class="an-row-top"><span>⏳ Ожидает</span><span>${pending.length} · €${pendingSum}</span></div></div>` : ''}
+        <div class="an-total" style="cursor:pointer" onclick="navigateTo('billing')">→ Открыть Финансы</div>
+      </div>`;
+    })()}`;
 }
 
 const TARIFF_PRICE = { basic: 50, standard: 75, premium: 100 };
@@ -438,6 +477,12 @@ function animCount(id, target) {
   const iv = setInterval(() => { n = Math.min(n + step, target); el.textContent = n; if (n >= target) clearInterval(iv); }, 30);
 }
 function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+}
 
 // ── PROPERTIES ───────────────────────────────────────────────
 const STATUS_COLORS = { ok: 'var(--teal)', warning: 'var(--orange)', issue: 'var(--red)' };
@@ -712,8 +757,7 @@ function renderClients() {
         <div class="client-props">📱 ${c.phone||'—'} · ⌂ ${propCount}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div class="client-monthly">€${monthly}</div>
-        <div style="font-size:10px;color:var(--text3)">в месяц</div>
+        ${propCount ? `<div class="client-monthly">€${monthly}</div><div style="font-size:10px;color:var(--text3)">в месяц</div>` : `<div style="font-size:12px;color:var(--text3)">нет объектов</div>`}
         <button class="client-link-btn" style="margin-top:6px" onclick="event.stopPropagation();showClientLink('${c.id}')">🔗 Портал</button>
       </div>
     </div>`;
@@ -1752,12 +1796,32 @@ function exportInvoices() {
 
 // ── SETTINGS ─────────────────────────────────────────────────
 async function saveSettings() {
+  const color = document.getElementById('setColor')?.value || '#c9a84c';
   await DB.update('settings/agency', {
     name:  document.getElementById('setName').value.trim(),
     city:  document.getElementById('setCity').value.trim(),
     phone: document.getElementById('setPhone').value.trim(),
+    color,
   });
+  applyBrandColor(color);
   showToast('✅ Настройки сохранены!');
+}
+
+// Apply a brand accent color to the whole UI (lighten for the secondary accent)
+function applyBrandColor(hex) {
+  if (!hex) return;
+  document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--accent2', lightenHex(hex, 0.25));
+}
+function lightenHex(hex, amt) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  let n = parseInt(m[1], 16);
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  r = Math.round(r + (255 - r) * amt);
+  g = Math.round(g + (255 - g) * amt);
+  b = Math.round(b + (255 - b) * amt);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
 async function installPwa() {
