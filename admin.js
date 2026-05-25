@@ -313,6 +313,7 @@ function handleAdd() {
     document.querySelector('#addClientModal .modal-title').textContent = 'Новый клиент';
     clearForm(['clientName','clientCountry','clientPhone','clientTg','clientChatId']);
   }
+  if (State.page === 'reports') resetReportForm();
   openModal(map[State.page] || 'addVisitModal');
 }
 
@@ -729,7 +730,7 @@ function openClientDetail(id) {
   const reports = Object.values(State.reports).filter(r => propIds.includes(r.propId)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const requests = Object.values(State.requests).filter(r => r.clientId === id).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const monthly = clientMonthly(id);
-  const LANG_LABELS = { ru:'Русский', en:'English', de:'Deutsch', fr:'Français' };
+  const LANG_LABELS = { ru:'Русский', en:'English', de:'Deutsch', fr:'Français', tr:'Türkçe' };
 
   const propsHtml = props.map(p => `<div class="detail-row" style="cursor:pointer" onclick="closeModal('clientDetailModal');openPropertyDetail('${p.id}')"><span>${TYPE_ICONS[p.type||'apt']} ${p.address}</span><span>${TARIFF_LABELS[p.tariff]||p.tariff} · €${TARIFF_PRICE[p.tariff]||0}</span></div>`).join('') || '<div style="color:var(--text3);font-size:13px">Нет объектов</div>';
   const reportsHtml = reports.slice(0,5).map(r => {
@@ -951,6 +952,7 @@ async function completeVisit(id) {
   // Open report form with this visit pre-selected.
   // The visit is marked "done" only when the report is actually saved (saveReport),
   // so cancelling the form no longer loses the visit.
+  resetReportForm();
   openModal('createReportModal');
   setTimeout(() => {
     const sel = document.getElementById('reportVisitSel');
@@ -1158,9 +1160,24 @@ async function saveReport() {
   State.uploadedPhotos = [];
   State.uploadedVideo = null;
   document.getElementById('photoPreview').innerHTML = '';
-  document.getElementById('videoName').textContent = '';
+  const ph = document.getElementById('photoPlaceholder');
+  if (ph) ph.style.display = 'flex';
+  const vn = document.getElementById('videoName');
+  if (vn) vn.textContent = '';
   clearForm(['reportComment','reportBill']);
   showToast('✅ Отчёт сохранён и отправлен!');
+}
+
+// Reset the report form's photo/video state (called when opening the form)
+function resetReportForm() {
+  State.uploadedPhotos = [];
+  State.uploadedVideo = null;
+  const prev = document.getElementById('photoPreview');
+  if (prev) prev.innerHTML = '';
+  const ph = document.getElementById('photoPlaceholder');
+  if (ph) ph.style.display = 'flex';
+  const vn = document.getElementById('videoName');
+  if (vn) vn.textContent = '';
 }
 
 function setProgress(pct, label) {
@@ -1431,10 +1448,16 @@ async function sendReportTelegram() {
   const r = State.reports[State.currentReportId];
   const p = State.properties[r?.propId] || {};
   const client = State.clients[p.clientId];
-  if (!client) { showToast('Клиент не найден'); return; }
-  await sendTgReport(r, p, client);
+  if (!client) { showToast('❌ Клиент не найден'); return; }
+  if (!client.tgChatId) { showToast('❌ У клиента не подключён Telegram'); return; }
+
+  const settings = await DB.once('settings/telegram');
+  // Mark for the bot to deliver (reliable: bot sends with photos, no CORS/base64 issues)
+  await DB.update(`reports/${r.id}`, { sendToClient: true, sentToClient: false });
+  // Also attempt direct send as a fallback (works if a token is set and photos are public URLs)
+  if (settings?.token) await sendTgReport(r, p, client);
   closeModal('reportModal');
-  showToast('✈ Отправлено в Telegram!');
+  showToast('✈ Отправка клиенту запущена');
 }
 
 async function tryTgNotify(propId, message) {

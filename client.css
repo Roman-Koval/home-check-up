@@ -109,17 +109,24 @@ select.client-input option { background:var(--bg2); }
 
 /* ── LANGUAGE SWITCHER ──────────────────────────────────────── */
 .lang-switcher {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid var(--border, rgba(255,255,255,0.12));
-  color: var(--text, #e8edf4);
+  background: rgba(255,255,255,0.10);
+  border: 1px solid var(--accent2, #c9a84c);
+  color: #fff;
   border-radius: 8px;
-  padding: 5px 8px;
-  font-size: 12px;
+  padding: 6px 26px 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   margin-right: 8px;
   -webkit-appearance: none;
   appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23c9a84c' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
 }
+.lang-switcher:hover { background-color: rgba(255,255,255,0.16); }
 .lang-switcher:focus { outline: none; border-color: var(--accent2, #c9a84c); }
+/* Dropdown options render on a white system menu — force dark readable text */
+.lang-switcher option { color: #1a2332; background: #fff; }
 .client-user { display: flex; align-items: center; gap: 6px; }

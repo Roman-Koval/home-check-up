@@ -102,9 +102,33 @@ const I18N = {
     enterTitle:'Veuillez saisir un titre', sending:'⏳ Envoi…', sent:'✅ Envoyé !', sentToast:'✅ Demande envoyée ! Nous répondons sous 24 heures.', errPrefix:'❌ Erreur : ',
     monthsFull:['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'],
   },
+  tr: {
+    splashSub:'Kişisel paneliniz', brandSub:'Müşteri Paneli',
+    accessTitle:'Erişim reddedildi', accessDesc:'Bu bağlantı geçersiz veya süresi dolmuş. Lütfen CyprusGuard ajansıyla iletişime geçin.', call:'📞 Ara',
+    tabOverview:'🏠 Genel', tabReports:'📋 Raporlar', tabRequest:'📬 Talep', tabInfo:'ℹ️ İletişim',
+    kpiVisits:'Toplam ziyaret', kpiReports:'Raporlar', kpiNext:'Sonraki ziyaret',
+    recentReports:'Son raporlar', visitHistory:'Ziyaret geçmişi',
+    sendRequest:'Talep gönder', requestDesc:'Sorunu veya isteği yazın — 24 saat içinde yanıtlıyoruz',
+    reqType:'Talep türü', typeMaintenance:'🔧 Tamir', typeVisit:'📅 Ek ziyaret', typeUrgent:'🚨 Acil', typeOther:'📝 Diğer',
+    title:'Başlık', titlePh:'Sorunu kısaca açıklayın…', descLabel:'Ayrıntılı açıklama', descPh:'Ne oldu? Tam olarak nerede? Ne zamandır?…',
+    priority:'Öncelik', prNormal:'Normal — planlı', prHigh:'Yüksek — bir hafta içinde', prUrgent:'Acil — mümkün olan en kısa sürede',
+    photoOpt:'Fotoğraf (isteğe bağlı)', attachPhoto:'Fotoğraf ekle', sendBtn:'📤 Talebi gönder', myRequests:'Taleplerim',
+    agencyDesc:'Kıbrıs\'taki mülkünüz için profesyonel bakım',
+    installTitle:'Uygulamayı yükle', installDesc:'Ana ekrandan hızlı erişim', install:'Yükle',
+    close:'Kapat', report:'Rapor', yourTariff:'Tarifeniz', noReports:'Henüz rapor yok', noVisits:'Henüz ziyaret yok', noProps:'Bağlı mülk yok.<br/>Lütfen ajansla iletişime geçin.',
+    object:'Mülk', date:'Tarih', condition:'Durum', photos:'Fotoğraflar', video:'Video', comment:'Yorum', tasks:'Görevler', utility:'Fatura',
+    statusOk:'✅ Her şey yolunda', statusWarn:'⚠️ Küçük notlar', statusIssue:'❌ Dikkat gerekiyor',
+    statusOkSub:'Son kontrol sorunsuz geçti', statusWarnSub:'Görevli küçük sorunlar buldu', statusIssueSub:'Bir sorun tespit edildi — ilgileniyoruz',
+    condOk:'✅ İyi', condWarn:'⚠️ Not', condIssue:'❌ Sorun',
+    condOkFull:'✅ Her şey yolunda', condWarnFull:'⚠️ Küçük notlar', condIssueFull:'❌ Sorun bulundu',
+    vPlanned:'Planlandı', vDone:'Tamamlandı', vUrgent:'Acil', vIssue:'Sorun', visit:'Ziyaret',
+    rNew:'Yeni', rProgress:'İşlemde', rDone:'Tamamlandı',
+    enterTitle:'Lütfen bir başlık girin', sending:'⏳ Gönderiliyor…', sent:'✅ Gönderildi!', sentToast:'✅ Talep gönderildi! 24 saat içinde yanıtlayacağız.', errPrefix:'❌ Hata: ',
+    monthsFull:['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'],
+  },
 };
 
-const LOCALE_MAP = { ru:'ru-RU', en:'en-GB', de:'de-DE', fr:'fr-FR' };
+const LOCALE_MAP = { ru:'ru-RU', en:'en-GB', de:'de-DE', fr:'fr-FR', tr:'tr-TR' };
 let LANG = 'ru';
 function t(key) { return (I18N[LANG] && I18N[LANG][key]) || I18N.ru[key] || key; }
 
@@ -422,6 +446,7 @@ const TARIFF_FEATURES_I18N = {
   en: { basic:['2 visits per month','Photo report','Airing','Telegram alerts'], standard:['4 visits per month','Photo + video','Plant watering','Bill checking','Telegram alerts'], premium:['Weekly visits','Video tour','Emergency call-out','Minor repairs','Full package'] },
   de: { basic:['2 Besuche pro Monat','Fotobericht','Lüften','Telegram-Benachrichtigungen'], standard:['4 Besuche pro Monat','Foto + Video','Pflanzenbewässerung','Rechnungsprüfung','Telegram-Benachrichtigungen'], premium:['Wöchentliche Besuche','Video-Tour','Noteinsatz','Kleine Reparaturen','Komplettpaket'] },
   fr: { basic:['2 visites par mois','Rapport photo','Aération','Alertes Telegram'], standard:['4 visites par mois','Photo + vidéo','Arrosage des plantes','Vérification des factures','Alertes Telegram'], premium:['Visites hebdomadaires','Visite vidéo','Intervention urgente','Petites réparations','Forfait complet'] },
+  tr: { basic:['Ayda 2 ziyaret','Fotoğraf raporu','Havalandırma','Telegram bildirimleri'], standard:['Ayda 4 ziyaret','Fotoğraf + video','Bitki sulama','Fatura kontrolü','Telegram bildirimleri'], premium:['Haftalık ziyaretler','Video tur','Acil müdahale','Küçük tamirat','Tam paket'] },
 };
 
 function renderInfo() {

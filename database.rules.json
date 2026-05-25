@@ -1,5 +1,4 @@
 {
-  "_comment_ru": "CyprusGuard — правила Realtime Database. БЕЗОПАСНАЯ версия: чтение/запись только для авторизованных (auth != null). Админка входит по email, клиентский портал — анонимно (Auth.ensureAnonAuth), бот — через service account (полный доступ в обход правил). Это закрывает базу от анонимных сканеров из интернета. ВАЖНО: перед публикацией этих правил включите Anonymous Authentication в Firebase Console (Authentication → Sign-in method → Anonymous → Enable), иначе клиентский портал не сможет читать данные.",
   "rules": {
     ".read": "auth != null",
     ".write": "auth != null",
