@@ -21,6 +21,7 @@ const State = {
   propSearch: '',
   reqFilter: 'new',
   reportSearch: '',
+  clientSearch: '',
   currentReqId: null,
   currentReportId: null,
   currentClientId: null,
@@ -216,6 +217,8 @@ function bindAppEvents() {
     });
   });
   document.getElementById('propSearch').addEventListener('input', e => { State.propSearch = e.target.value; renderProperties(); });
+  document.getElementById('reportSearch')?.addEventListener('input', e => { State.reportSearch = e.target.value; renderReports(); });
+  document.getElementById('clientSearch')?.addEventListener('input', e => { State.clientSearch = e.target.value; renderClients(); });
 
   // Request filters
   document.querySelectorAll('[data-req-filter]').forEach(btn => {
@@ -267,6 +270,8 @@ function bindAppEvents() {
 
   // Billing
   document.getElementById('genInvoicesBtn')?.addEventListener('click', generateMonthlyInvoices);
+  document.getElementById('exportInvoicesBtn')?.addEventListener('click', exportInvoices);
+  document.getElementById('exportClientsBtn')?.addEventListener('click', exportClients);
 
   // Load settings
   DB.once('settings').then(s => {
@@ -368,6 +373,59 @@ function updateKPIs() {
   // Badge
   const badge = document.getElementById('reqBadge');
   if (badge) { badge.textContent = reqs.length; badge.style.display = reqs.length ? 'inline-flex' : 'none'; }
+
+  renderDashAnalytics();
+}
+
+function renderDashAnalytics() {
+  const el = document.getElementById('dashAnalytics');
+  if (!el) return;
+  const props = Object.values(State.properties);
+  const visits = Object.values(State.visits);
+
+  // Revenue by tariff
+  const byTariff = { basic:0, standard:0, premium:0 };
+  props.forEach(p => { if (byTariff[p.tariff] != null) byTariff[p.tariff] += TARIFF_PRICE[p.tariff]||0; });
+  const totalRev = byTariff.basic + byTariff.standard + byTariff.premium || 1;
+
+  // Property status split
+  const byStatus = { ok:0, warning:0, issue:0 };
+  props.forEach(p => { byStatus[p.status] = (byStatus[p.status]||0) + 1; });
+  const totalProps = props.length || 1;
+
+  // Visits this month
+  const now = new Date();
+  const ymPref = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const visitsThisMonth = visits.filter(v => (v.date||'').startsWith(ymPref)).length;
+  const doneThisMonth = visits.filter(v => (v.date||'').startsWith(ymPref) && v.status === 'done').length;
+
+  const bar = (label, val, total, color) => `
+    <div class="an-row">
+      <div class="an-row-top"><span>${label}</span><span>${val}${typeof total==='string'?total:` · €${val}`}</span></div>
+      <div class="an-track"><div class="an-fill" style="width:${Math.round((val/(typeof total==='number'?total:1))*100)||0}%;background:${color}"></div></div>
+    </div>`;
+
+  el.innerHTML = `
+    <div class="an-card">
+      <div class="an-title">Доход по тарифам</div>
+      ${bar('Basic', byTariff.basic, totalRev, 'var(--teal,#4fc3a1)')}
+      ${bar('Standard', byTariff.standard, totalRev, 'var(--orange,#f0a500)')}
+      ${bar('Premium', byTariff.premium, totalRev, 'var(--accent2,#c9a84c)')}
+      <div class="an-total">Всего: €${byTariff.basic+byTariff.standard+byTariff.premium}/мес</div>
+    </div>
+    <div class="an-card">
+      <div class="an-title">Состояние объектов</div>
+      ${bar('✅ Норма', byStatus.ok, totalProps, 'var(--teal,#4fc3a1)')}
+      ${bar('⚠️ Внимание', byStatus.warning, totalProps, 'var(--orange,#f0a500)')}
+      ${bar('❌ Проблема', byStatus.issue, totalProps, 'var(--red,#e05c5c)')}
+      <div class="an-total">Объектов: ${props.length}</div>
+    </div>
+    <div class="an-card">
+      <div class="an-title">Визиты в этом месяце</div>
+      <div class="an-big">${doneThisMonth}<span>/${visitsThisMonth}</span></div>
+      <div class="an-sub">выполнено из запланированных</div>
+      <div class="an-track" style="margin-top:10px"><div class="an-fill" style="width:${Math.round((doneThisMonth/(visitsThisMonth||1))*100)}%;background:var(--teal,#4fc3a1)"></div></div>
+    </div>`;
 }
 
 const TARIFF_PRICE = { basic: 50, standard: 75, premium: 100 };
@@ -630,7 +688,16 @@ function clientMonthly(clientId) {
 }
 
 function renderClients() {
-  const list = Object.values(State.clients);
+  let list = Object.values(State.clients);
+  if (State.clientSearch) {
+    const q = State.clientSearch.toLowerCase();
+    list = list.filter(c =>
+      (c.name||'').toLowerCase().includes(q) ||
+      (c.country||'').toLowerCase().includes(q) ||
+      (c.tg||'').toLowerCase().includes(q) ||
+      (c.phone||'').toLowerCase().includes(q)
+    );
+  }
   document.getElementById('clientsList').innerHTML = list.map(c => {
     const monthly = clientMonthly(c.id);
     const propCount = Object.values(State.properties).filter(p => p.clientId === c.id).length;
@@ -1616,6 +1683,48 @@ function downloadReportPdf(id) {
 
 function escapeHtml(s) {
   return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── CSV EXPORT ───────────────────────────────────────────────
+function downloadCsv(filename, rows) {
+  // rows: array of arrays. First row = headers.
+  const esc = v => {
+    const s = String(v == null ? '' : v);
+    return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const csv = '\uFEFF' + rows.map(r => r.map(esc).join(';')).join('\r\n'); // BOM + ; for Excel RU
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast('⬇ Файл выгружен');
+}
+
+function exportClients() {
+  const rows = [['Имя','Страна','Телефон','Telegram','Язык','Подключён к боту','Объектов','Доход/мес €']];
+  Object.values(State.clients).forEach(c => {
+    const props = Object.values(State.properties).filter(p => p.clientId === c.id);
+    rows.push([
+      c.name||'', c.country||'', c.phone||'', c.tg||'', c.lang||'ru',
+      c.tgChatId ? 'да' : 'нет', props.length, clientMonthly(c.id)
+    ]);
+  });
+  downloadCsv(`clients_${ym()}.csv`, rows);
+}
+
+function exportInvoices() {
+  const statusRu = { paid:'Оплачен', pending:'Ожидает', overdue:'Просрочен' };
+  const rows = [['Счёт','Клиент','Объект','Период','Сумма €','Статус']];
+  Object.values(State.invoices).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).forEach(inv => {
+    const p = State.properties[inv.propId] || {};
+    rows.push([
+      (inv.id||'').slice(-6), getClientName(inv.clientId), p.address||'',
+      inv.period||'', inv.amount||0, statusRu[inv.status]||inv.status||''
+    ]);
+  });
+  downloadCsv(`invoices_${ym()}.csv`, rows);
 }
 
 // ── SETTINGS ─────────────────────────────────────────────────

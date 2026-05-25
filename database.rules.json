@@ -1,8 +1,8 @@
 {
-  "_comment": "CyprusGuard — правила Realtime Database. Эта версия сохраняет ОТКРЫТЫЙ доступ (как в текущем проекте: клиентский портал читает данные без входа, по токену из URL) и лишь добавляет индексы, чтобы убрать предупреждения FIREBASE WARNING про unspecified index. Если позже будете закрывать доступ — делайте это осторожно, иначе клиентский портал перестанет читать БД.",
+  "_comment_ru": "CyprusGuard — правила Realtime Database. БЕЗОПАСНАЯ версия: чтение/запись только для авторизованных (auth != null). Админка входит по email, клиентский портал — анонимно (Auth.ensureAnonAuth), бот — через service account (полный доступ в обход правил). Это закрывает базу от анонимных сканеров из интернета. ВАЖНО: перед публикацией этих правил включите Anonymous Authentication в Firebase Console (Authentication → Sign-in method → Anonymous → Enable), иначе клиентский портал не сможет читать данные.",
   "rules": {
-    ".read": true,
-    ".write": true,
+    ".read": "auth != null",
+    ".write": "auth != null",
     "reports":     { ".indexOn": ["createdAt", "propId", "visitId", "clientId"] },
     "requests":    { ".indexOn": ["createdAt", "clientId", "propId", "status"] },
     "visits":      { ".indexOn": ["date", "propId", "status"] },

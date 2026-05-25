@@ -145,3 +145,16 @@
 
 /* ── BAR CHART: projected (estimated) bars ──────────────────── */
 .bar-fill.projected { opacity: 0.45; background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 8px); }
+
+/* ── DASHBOARD ANALYTICS ────────────────────────────────────── */
+.analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.an-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.an-title { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text3); margin-bottom: 14px; }
+.an-row { margin-bottom: 12px; }
+.an-row-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--text2); margin-bottom: 5px; }
+.an-track { height: 7px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+.an-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+.an-total { font-size: 12px; color: var(--text3); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.an-big { font-size: 34px; font-weight: 300; color: var(--text); }
+.an-big span { font-size: 18px; color: var(--text3); }
+.an-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }

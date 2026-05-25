@@ -160,6 +160,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     const token = new URLSearchParams(window.location.search).get('token');
     if (!token) { showAccessDenied(); return; }
 
+    // Authenticate (anonymously) so locked-down DB rules allow reads
+    await Auth.ensureAnonAuth();
+
     const client = await Auth.verifyClientToken(token);
     if (!client) { showAccessDenied(); return; }
 

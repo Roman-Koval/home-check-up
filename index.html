@@ -102,6 +102,8 @@
           <div class="kpi-card"><div class="kpi-label">Визитов</div><div class="kpi-value" id="kpiVis">—</div><div class="kpi-change" id="kpiVisC"></div></div>
           <div class="kpi-card kpi-alert"><div class="kpi-label">Заявок</div><div class="kpi-value" id="kpiReq">—</div><div class="kpi-change negative">ожидают ответа</div></div>
         </div>
+        <div class="section-title">Аналитика</div>
+        <div id="dashAnalytics" class="analytics-grid"></div>
         <div class="section-title">Ближайшие визиты</div>
         <div id="dashVisits" class="visits-list"></div>
         <div class="section-title">Новые заявки</div>
@@ -159,6 +161,10 @@
 
       <!-- CLIENTS -->
       <section class="page" id="page-clients">
+        <div class="page-toolbar" style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+          <div class="search-box" style="flex:1"><span>🔍</span><input type="text" placeholder="Поиск клиента…" id="clientSearch"/></div>
+          <button class="btn-secondary" id="exportClientsBtn" style="font-size:12px;padding:8px 12px">⬇ CSV</button>
+        </div>
         <div id="clientsList" class="clients-list"></div>
       </section>
 
@@ -211,7 +217,7 @@
           <div class="kpi-card"><div class="kpi-label">Ожидается</div><div class="kpi-value" id="billPending">—</div></div>
           <div class="kpi-card kpi-alert"><div class="kpi-label">Просрочено</div><div class="kpi-value" id="billOverdue">—</div></div>
         </div>
-        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">Счета<button class="btn-secondary" id="genInvoicesBtn" style="font-size:12px;padding:6px 12px">＋ Счета за месяц</button></div>
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">Счета<span style="display:flex;gap:6px"><button class="btn-secondary" id="exportInvoicesBtn" style="font-size:12px;padding:6px 12px">⬇ CSV</button><button class="btn-secondary" id="genInvoicesBtn" style="font-size:12px;padding:6px 12px">＋ Счета за месяц</button></span></div>
         <div id="invoicesList" class="invoices-list"></div>
         <div class="section-title">Доходность</div>
         <div class="bar-chart-wrap"><div class="bar-chart" id="barChart"></div></div>

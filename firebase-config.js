@@ -114,7 +114,21 @@ const Auth = {
 
   currentUser: () => auth.currentUser,
 
-  isLoggedIn: () => !!auth.currentUser
+  isLoggedIn: () => !!auth.currentUser,
+
+  // Sign in anonymously if not already authenticated. Used by the client
+  // portal so the Realtime DB rules can require auth != null without a
+  // full login. Fails gracefully if Anonymous auth isn't enabled yet.
+  ensureAnonAuth: async () => {
+    if (auth.currentUser) return auth.currentUser;
+    try {
+      const cred = await auth.signInAnonymously();
+      return cred.user;
+    } catch (e) {
+      console.warn('Anonymous auth unavailable:', e.code || e.message);
+      return null;
+    }
+  }
 };
 
 // ── 5. STORAGE HELPERS ──────────────────────────────────────
