@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v11-2026-05-22';
+const BOT_VERSION = 'v12-2026-05-22';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -96,6 +96,7 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Следующий визит*\n\n📍 ${addr}\n🗓 ${date}\nТип: ${type}\n\n*Задачи:*\n${tasks}`,
     requestPrompt: '📬 Чтобы оставить заявку — напишите её следующим сообщением, начав со слова «Заявка:»\n\nНапример:\n_Заявка: течёт кран на кухне_',
     requestAccepted: '✅ Заявка принята! Мы свяжемся с вами в течение 24 часов.',
+    payReminder: (addr, amt, period) => `💳 Напоминание об оплате\n\n🏠 ${addr}\n📅 Период: ${period}\n💶 Сумма: €${amt}\n\nПожалуйста, оплатите счёт за обслуживание. Спасибо!`,
     reqInProgress: (t) => `🔧 Ваша заявка взята в работу:\n«${t}»\n\nМы уже занимаемся ей.`,
     reqDone: (t) => `✅ Ваша заявка выполнена:\n«${t}»\n\nСпасибо, что обратились!`,
     notRegistered: (id) => `❌ Вы не зарегистрированы.\n\nВаш chat ID: \`${id}\`\n\nСообщите его агентству: +357 99 123 456`,
@@ -117,6 +118,7 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Next visit*\n\n📍 ${addr}\n🗓 ${date}\nType: ${type}\n\n*Tasks:*\n${tasks}`,
     requestPrompt: '📬 To submit a request — send it as your next message starting with "Request:"\n\nExample:\n_Request: kitchen tap is leaking_',
     requestAccepted: '✅ Request received! We will contact you within 24 hours.',
+    payReminder: (addr, amt, period) => `💳 Payment reminder\n\n🏠 ${addr}\n📅 Period: ${period}\n💶 Amount: €${amt}\n\nPlease settle your service invoice. Thank you!`,
     reqInProgress: (t) => `🔧 Your request is now in progress:\n"${t}"\n\nWe're working on it.`,
     reqDone: (t) => `✅ Your request is completed:\n"${t}"\n\nThank you!`,
     notRegistered: (id) => `❌ You are not registered.\n\nYour chat ID: \`${id}\`\n\nShare it with the agency: +357 99 123 456`,
@@ -138,6 +140,7 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Nächster Besuch*\n\n📍 ${addr}\n🗓 ${date}\nTyp: ${type}\n\n*Aufgaben:*\n${tasks}`,
     requestPrompt: '📬 Um eine Anfrage zu senden — schreiben Sie sie als nächste Nachricht, beginnend mit "Anfrage:"\n\nBeispiel:\n_Anfrage: Wasserhahn in der Küche tropft_',
     requestAccepted: '✅ Anfrage erhalten! Wir melden uns innerhalb von 24 Stunden.',
+    payReminder: (addr, amt, period) => `💳 Zahlungserinnerung\n\n🏠 ${addr}\n📅 Zeitraum: ${period}\n💶 Betrag: €${amt}\n\nBitte begleichen Sie Ihre Rechnung. Vielen Dank!`,
     reqInProgress: (t) => `🔧 Ihre Anfrage ist in Bearbeitung:\n"${t}"\n\nWir kümmern uns darum.`,
     reqDone: (t) => `✅ Ihre Anfrage ist erledigt:\n"${t}"\n\nVielen Dank!`,
     notRegistered: (id) => `❌ Sie sind nicht registriert.\n\nIhre chat ID: \`${id}\`\n\nTeilen Sie sie der Agentur mit: +357 99 123 456`,
@@ -159,6 +162,7 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Prochaine visite*\n\n📍 ${addr}\n🗓 ${date}\nType : ${type}\n\n*Tâches :*\n${tasks}`,
     requestPrompt: '📬 Pour envoyer une demande — écrivez-la dans votre prochain message en commençant par "Demande :"\n\nExemple :\n_Demande : le robinet de la cuisine fuit_',
     requestAccepted: '✅ Demande reçue ! Nous vous contacterons sous 24 heures.',
+    payReminder: (addr, amt, period) => `💳 Rappel de paiement\n\n🏠 ${addr}\n📅 Période : ${period}\n💶 Montant : €${amt}\n\nMerci de régler votre facture.`,
     reqInProgress: (t) => `🔧 Votre demande est en cours :\n"${t}"\n\nNous nous en occupons.`,
     reqDone: (t) => `✅ Votre demande est terminée :\n"${t}"\n\nMerci !`,
     notRegistered: (id) => `❌ Vous n'êtes pas enregistré.\n\nVotre chat ID : \`${id}\`\n\nCommuniquez-le à l'agence : +357 99 123 456`,
@@ -717,3 +721,67 @@ async function checkReminders() {
 // Run shortly after startup, then hourly
 setTimeout(checkReminders, 15000);
 setInterval(checkReminders, 60 * 60 * 1000);
+
+// ── BILLING SCHEDULER ────────────────────────────────────────
+// Hourly: on the 1st of the month auto-create invoices (once), and any time —
+// mark past-period pending invoices overdue and remind those clients (once).
+function ymToken(d = new Date()) { return `${d.getFullYear()}_${d.getMonth() + 1}`; }
+function ymLabel(d = new Date()) { return d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }); }
+
+async function checkBilling() {
+  try {
+    const props = await get('properties') || {};
+    const invoices = await get('invoices') || {};
+    const clients = await get('clients') || {};
+    const TARIFF_PRICE = { basic: 50, standard: 75, premium: 100 };
+    const now = new Date();
+    const period = ymLabel(now);
+    const token = ymToken(now);
+
+    // 1) Auto-generate invoices on the 1st of the month (idempotent per property+month)
+    if (now.getDate() === 1) {
+      let created = 0;
+      for (const p of Object.values(props)) {
+        const invId = `${p.id}_${token}`;
+        if (invoices[invId]) continue;
+        await set(`invoices/${invId}`, {
+          id: invId, propId: p.id, clientId: p.clientId,
+          period, amount: TARIFF_PRICE[p.tariff] || 0,
+          status: 'pending', createdAt: Date.now()
+        });
+        created++;
+      }
+      if (created && ADMIN_ID) {
+        bot.sendMessage(ADMIN_ID, `🧾 Авто-счета за ${period}: создано ${created}`).catch(()=>{});
+        console.log(`🧾 Auto-invoices created: ${created}`);
+      }
+    }
+
+    // 2) Overdue handling: pending invoice from a previous month → overdue + remind client once
+    for (const inv of Object.values(invoices)) {
+      if (inv.status !== 'pending') continue;
+      const invToken = (inv.id || '').split('_').slice(-2).join('_');
+      if (!invToken || invToken === token) continue; // current month, skip
+
+      await update(`invoices/${inv.id}`, { status: 'overdue' });
+
+      if (inv._payReminded) continue;
+      const client = Object.values(clients).find(c => c.id === inv.clientId);
+      if (client && client.tgChatId) {
+        const lang = client.lang || 'ru';
+        const prop = props[inv.propId] || {};
+        bot.sendMessage(client.tgChatId,
+          tr(lang).payReminder(prop.address || '—', inv.amount || 0, inv.period || ''),
+          { parse_mode: 'Markdown' }
+        ).catch(()=>{});
+        console.log(`💳 Payment reminder sent to ${client.name}`);
+      }
+      await update(`invoices/${inv.id}`, { _payReminded: true });
+    }
+  } catch (e) {
+    console.error('checkBilling failed:', e.message);
+  }
+}
+
+setTimeout(checkBilling, 25000);
+setInterval(checkBilling, 60 * 60 * 1000);
