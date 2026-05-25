@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v14-2026-05-25';
+const BOT_VERSION = 'v16-2026-05-25';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -367,6 +367,32 @@ bot.on('message', async (msg) => {
 
 // ── ADMIN COMMANDS ───────────────────────────────────────────
 
+// Help: shows available commands depending on whether you're admin or client
+bot.onText(/\/help|\/start@|\/menu/, async (msg) => {
+  const chatId = msg.chat.id;
+  const isAdmin = String(chatId) === String(ADMIN_ID);
+  if (isAdmin) {
+    return bot.sendMessage(chatId,
+      `🛠 *Команды администратора*\n\n` +
+      `📊 Сводка — общая статистика\n` +
+      `🔔 Заявки — новые заявки\n` +
+      `🏠 Объекты — список объектов\n` +
+      `👥 Клиенты — список клиентов\n` +
+      `📤 Разослать отчёт\n\n` +
+      `/diag — диагностика\n/testreq — тестовая заявка\n/testbilling — проверить счета сейчас\n/help — это меню\n\n` +
+      `💡 Под новыми заявками есть кнопки «🔧 В работу» / «✅ Выполнено» — статус меняется прямо здесь.`,
+      { parse_mode: 'Markdown', ...adminKb }
+    );
+  }
+  const client = await findClientByChatId(chatId);
+  const lang = client?.lang || 'ru';
+  if (client) {
+    return bot.sendMessage(chatId,
+      tr(lang).requestPrompt, { parse_mode: 'Markdown', ...clientKbFor(lang) });
+  }
+  return notRegistered(chatId);
+});
+
 // Diagnostic: shows your chatId and whether you're recognised as admin
 bot.onText(/\/diag/, async (msg) => {
   const chatId = msg.chat.id;
@@ -397,6 +423,14 @@ bot.onText(/\/testreq/, async (msg) => {
     status: 'new', createdAt: Date.now()
   });
   bot.sendMessage(msg.chat.id, '✅ Тестовая заявка создана. Уведомление должно прийти следом…');
+});
+
+// Diagnostic: run the monthly billing check on demand (creates invoices + overdue reminders)
+bot.onText(/\/testbilling/, async (msg) => {
+  if (String(msg.chat.id) !== String(ADMIN_ID)) return;
+  await bot.sendMessage(msg.chat.id, '⏳ Запускаю проверку биллинга…');
+  await checkBilling(true);
+  await bot.sendMessage(msg.chat.id, '✅ Проверка биллинга завершена. Если были созданы счета или просрочки — они уже обработаны.');
 });
 
 bot.onText(/📊 Сводка/, async (msg) => {
@@ -609,14 +643,28 @@ db.ref('requests').on('child_changed', async (snap) => {
 
   const clients = await get('clients') || {};
   const client = Object.values(clients).find(c => c.id === req.clientId);
-  if (!client || !client.tgChatId) return;
 
-  const lang = client.lang || 'ru';
-  const msg = req.status === 'done'
-    ? tr(lang).reqDone(req.title || '')
-    : tr(lang).reqInProgress(req.title || '');
-  bot.sendMessage(client.tgChatId, msg, { parse_mode: 'Markdown' }).catch(()=>{});
-  console.log(`🔔 Client notified about status "${req.status}": ${req.title}`);
+  // Notify the client (their language)
+  if (client && client.tgChatId) {
+    const lang = client.lang || 'ru';
+    const msg = req.status === 'done'
+      ? tr(lang).reqDone(req.title || '')
+      : tr(lang).reqInProgress(req.title || '');
+    bot.sendMessage(client.tgChatId, msg, { parse_mode: 'Markdown' }).catch(()=>{});
+    console.log(`🔔 Client notified about status "${req.status}": ${req.title}`);
+  }
+
+  // Notify the admin too, but only if the change came from the website
+  // (if it came from the bot buttons, the admin already saw it there).
+  if (ADMIN_ID && req._changedBy !== 'bot') {
+    const statusLabel = req.status === 'done' ? '✅ Выполнена' : '🔧 В работе';
+    bot.sendMessage(ADMIN_ID,
+      `ℹ️ Статус заявки изменён (через приложение)\n\n«${req.title || '—'}»\n👤 ${client?.name || '—'}\n→ ${statusLabel}`,
+      { parse_mode: 'Markdown' }
+    ).catch(()=>{});
+  }
+  // Clear the source marker so the next change is evaluated fresh
+  if (req._changedBy) snap.ref.child('_changedBy').remove().catch(()=>{});
 });
 
 // NEW REPORT → notify admin with "send to client" button
@@ -691,7 +739,7 @@ bot.on('callback_query', async (q) => {
     const fromAdmin = String(q.message.chat.id) === String(ADMIN_ID);
 
     if (domain === 'req' && fromAdmin) {
-      await update(`requests/${id}`, { status: action });
+      await update(`requests/${id}`, { status: action, _changedBy: 'bot' });
       const label = action === 'done' ? '✅ Выполнено' : '🔧 В работе';
       await bot.answerCallbackQuery(q.id, { text: `Статус: ${label}` });
 
@@ -779,7 +827,7 @@ setInterval(checkReminders, 60 * 60 * 1000);
 function ymToken(d = new Date()) { return `${d.getFullYear()}_${d.getMonth() + 1}`; }
 function ymLabel(d = new Date()) { return d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }); }
 
-async function checkBilling() {
+async function checkBilling(force = false) {
   try {
     const props = await get('properties') || {};
     const invoices = await get('invoices') || {};
@@ -789,8 +837,8 @@ async function checkBilling() {
     const period = ymLabel(now);
     const token = ymToken(now);
 
-    // 1) Auto-generate invoices on the 1st of the month (idempotent per property+month)
-    if (now.getDate() === 1) {
+    // 1) Auto-generate invoices on the 1st of the month (or when forced via /testbilling)
+    if (now.getDate() === 1 || force) {
       let created = 0;
       for (const p of Object.values(props)) {
         const invId = `${p.id}_${token}`;
