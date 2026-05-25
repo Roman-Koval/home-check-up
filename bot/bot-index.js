@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v7-2026-05-21';
+const BOT_VERSION = 'v12-2026-05-22';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -96,6 +96,9 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Следующий визит*\n\n📍 ${addr}\n🗓 ${date}\nТип: ${type}\n\n*Задачи:*\n${tasks}`,
     requestPrompt: '📬 Чтобы оставить заявку — напишите её следующим сообщением, начав со слова «Заявка:»\n\nНапример:\n_Заявка: течёт кран на кухне_',
     requestAccepted: '✅ Заявка принята! Мы свяжемся с вами в течение 24 часов.',
+    payReminder: (addr, amt, period) => `💳 Напоминание об оплате\n\n🏠 ${addr}\n📅 Период: ${period}\n💶 Сумма: €${amt}\n\nПожалуйста, оплатите счёт за обслуживание. Спасибо!`,
+    reqInProgress: (t) => `🔧 Ваша заявка взята в работу:\n«${t}»\n\nМы уже занимаемся ей.`,
+    reqDone: (t) => `✅ Ваша заявка выполнена:\n«${t}»\n\nСпасибо, что обратились!`,
     notRegistered: (id) => `❌ Вы не зарегистрированы.\n\nВаш chat ID: \`${id}\`\n\nСообщите его агентству: +357 99 123 456`,
     condOk: '✅ Всё в порядке', condWarning: '⚠️ Замечание', condIssue: '❌ Проблема',
     statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
@@ -115,6 +118,9 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Next visit*\n\n📍 ${addr}\n🗓 ${date}\nType: ${type}\n\n*Tasks:*\n${tasks}`,
     requestPrompt: '📬 To submit a request — send it as your next message starting with "Request:"\n\nExample:\n_Request: kitchen tap is leaking_',
     requestAccepted: '✅ Request received! We will contact you within 24 hours.',
+    payReminder: (addr, amt, period) => `💳 Payment reminder\n\n🏠 ${addr}\n📅 Period: ${period}\n💶 Amount: €${amt}\n\nPlease settle your service invoice. Thank you!`,
+    reqInProgress: (t) => `🔧 Your request is now in progress:\n"${t}"\n\nWe're working on it.`,
+    reqDone: (t) => `✅ Your request is completed:\n"${t}"\n\nThank you!`,
     notRegistered: (id) => `❌ You are not registered.\n\nYour chat ID: \`${id}\`\n\nShare it with the agency: +357 99 123 456`,
     condOk: '✅ All good', condWarning: '⚠️ Note', condIssue: '❌ Issue',
     statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
@@ -134,6 +140,9 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Nächster Besuch*\n\n📍 ${addr}\n🗓 ${date}\nTyp: ${type}\n\n*Aufgaben:*\n${tasks}`,
     requestPrompt: '📬 Um eine Anfrage zu senden — schreiben Sie sie als nächste Nachricht, beginnend mit "Anfrage:"\n\nBeispiel:\n_Anfrage: Wasserhahn in der Küche tropft_',
     requestAccepted: '✅ Anfrage erhalten! Wir melden uns innerhalb von 24 Stunden.',
+    payReminder: (addr, amt, period) => `💳 Zahlungserinnerung\n\n🏠 ${addr}\n📅 Zeitraum: ${period}\n💶 Betrag: €${amt}\n\nBitte begleichen Sie Ihre Rechnung. Vielen Dank!`,
+    reqInProgress: (t) => `🔧 Ihre Anfrage ist in Bearbeitung:\n"${t}"\n\nWir kümmern uns darum.`,
+    reqDone: (t) => `✅ Ihre Anfrage ist erledigt:\n"${t}"\n\nVielen Dank!`,
     notRegistered: (id) => `❌ Sie sind nicht registriert.\n\nIhre chat ID: \`${id}\`\n\nTeilen Sie sie der Agentur mit: +357 99 123 456`,
     condOk: '✅ Alles in Ordnung', condWarning: '⚠️ Hinweis', condIssue: '❌ Problem',
     statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
@@ -153,6 +162,9 @@ const T = {
     nextVisit: (addr, date, type, tasks) => `📅 *Prochaine visite*\n\n📍 ${addr}\n🗓 ${date}\nType : ${type}\n\n*Tâches :*\n${tasks}`,
     requestPrompt: '📬 Pour envoyer une demande — écrivez-la dans votre prochain message en commençant par "Demande :"\n\nExemple :\n_Demande : le robinet de la cuisine fuit_',
     requestAccepted: '✅ Demande reçue ! Nous vous contacterons sous 24 heures.',
+    payReminder: (addr, amt, period) => `💳 Rappel de paiement\n\n🏠 ${addr}\n📅 Période : ${period}\n💶 Montant : €${amt}\n\nMerci de régler votre facture.`,
+    reqInProgress: (t) => `🔧 Votre demande est en cours :\n"${t}"\n\nNous nous en occupons.`,
+    reqDone: (t) => `✅ Votre demande est terminée :\n"${t}"\n\nMerci !`,
     notRegistered: (id) => `❌ Vous n'êtes pas enregistré.\n\nVotre chat ID : \`${id}\`\n\nCommuniquez-le à l'agence : +357 99 123 456`,
     condOk: '✅ Tout va bien', condWarning: '⚠️ Remarque', condIssue: '❌ Problème',
     statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
@@ -333,6 +345,38 @@ bot.on('message', async (msg) => {
 
 // ── ADMIN COMMANDS ───────────────────────────────────────────
 
+// Diagnostic: shows your chatId and whether you're recognised as admin
+bot.onText(/\/diag/, async (msg) => {
+  const chatId = msg.chat.id;
+  const isAdmin = String(chatId) === String(ADMIN_ID);
+  const client = await findClientByChatId(chatId);
+  const text =
+    `🔍 *Диагностика*\n\n` +
+    `Ваш chatId: \`${chatId}\`\n` +
+    `ADMIN_CHAT_ID: \`${ADMIN_ID || 'НЕ ЗАДАН'}\`\n` +
+    `Вы админ: ${isAdmin ? '✅ да' : '❌ нет'}\n` +
+    `Вы клиент: ${client ? `✅ да (${client.name})` : '❌ нет'}\n` +
+    `Версия бота: ${BOT_VERSION}`;
+  bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+});
+
+// Diagnostic: admin creates a test request to verify the whole notify→buttons flow
+bot.onText(/\/testreq/, async (msg) => {
+  if (String(msg.chat.id) !== String(ADMIN_ID)) return;
+  const clients = await get('clients') || {};
+  const firstClient = Object.values(clients)[0];
+  if (!firstClient) return bot.sendMessage(msg.chat.id, 'Нет клиентов для теста');
+  const props = await getClientProps(firstClient.id);
+  const id = 'req_test_' + Date.now();
+  await set(`requests/${id}`, {
+    id, clientId: firstClient.id, propId: props[0]?.id || '',
+    type: 'other', title: 'ТЕСТ заявка',
+    description: 'Создано командой /testreq для проверки уведомлений',
+    status: 'new', createdAt: Date.now()
+  });
+  bot.sendMessage(msg.chat.id, '✅ Тестовая заявка создана. Уведомление должно прийти следом…');
+});
+
 bot.onText(/📊 Сводка/, async (msg) => {
   if (String(msg.chat.id) !== String(ADMIN_ID)) return;
 
@@ -480,24 +524,34 @@ bot.on('error', (err) => console.error('⚠️ Bot error:', err.message || err))
 process.on('unhandledRejection', (r) => console.error('⚠️ Unhandled rejection:', r && r.message ? r.message : r));
 process.on('uncaughtException',  (e) => console.error('⚠️ Uncaught exception:', e && e.message ? e.message : e));
 
-// ── SAFE REALTIME: only NEW requests after bot startup ───────
-const BOT_START = Date.now();
-console.log(`⏰ Bot start time: ${BOT_START}`);
+// ── REALTIME NOTIFICATIONS ───────────────────────────────────
+// On first boot, mark everything that already exists as "notified" so we
+// don't spam the admin with the backlog. After that, any genuinely new
+// child fires a notification. This does NOT rely on clock sync (the old
+// BOT_START approach silently dropped requests when times were close).
+let warmedUp = false;
 
+async function warmUp() {
+  const [reqs, reps] = await Promise.all([
+    get('requests').then(v => v || {}),
+    get('reports').then(v => v || {}),
+  ]);
+  const updates = {};
+  for (const id of Object.keys(reqs)) if (!reqs[id]._adminNotified) updates[`requests/${id}/_adminNotified`] = true;
+  for (const id of Object.keys(reps)) if (!reps[id]._adminNotified) updates[`reports/${id}/_adminNotified`] = true;
+  if (Object.keys(updates).length) await db.ref().update(updates);
+  warmedUp = true;
+  console.log(`✅ Warm-up done. Existing items marked (requests:${Object.keys(reqs).length}, reports:${Object.keys(reps).length}). Now watching for NEW ones.`);
+}
+
+// NEW REQUEST → notify admin with action buttons
 db.ref('requests').on('child_added', async (snap) => {
   const req = snap.val();
-  if (!req || !req.createdAt) return;
-
-  // Skip old requests (created before bot started)
-  if (req.createdAt < BOT_START) return;
-
-  // Skip already notified
-  if (req._adminNotified) return;
-
-  // Mark notified immediately to prevent re-fire
+  console.log(`[req fired] id=${snap.key} warmedUp=${warmedUp} notified=${req?._adminNotified}`);
+  if (!warmedUp) return;            // ignore the initial backlog burst
+  if (!req || req._adminNotified) return;
   await snap.ref.update({ _adminNotified: true });
-
-  if (!ADMIN_ID) return;
+  if (!ADMIN_ID) { console.log('⚠️ ADMIN_ID not set — cannot notify'); return; }
 
   const clients = await get('clients') || {};
   const props = await get('properties') || {};
@@ -506,16 +560,125 @@ db.ref('requests').on('child_added', async (snap) => {
 
   const urgent = req.priority === 'urgent' || req.type === 'urgent';
   const head = urgent ? '🚨 *СРОЧНАЯ заявка!*' : '📬 *Новая заявка!*';
-  const text = `${head}\n\n*${req.title}*\n\n👤 ${client?.name || '—'}\n🏠 ${prop?.address || '—'}\n\n${req.description || ''}`;
+  const text = `${head}\n\n*${req.title || '—'}*\n\n👤 ${client?.name || '—'}\n🏠 ${prop?.address || '—'}\n\n${req.description || ''}`;
 
-  bot.sendMessage(ADMIN_ID, text, { parse_mode: 'Markdown' }).catch(e =>
-    console.error('Admin notify failed:', e.message)
-  );
+  bot.sendMessage(ADMIN_ID, text, {
+    parse_mode: 'Markdown',
+    reply_markup: { inline_keyboard: [[
+      { text: '🔧 В работу', callback_data: `req:inprogress:${req.id}` },
+      { text: '✅ Выполнено', callback_data: `req:done:${req.id}` },
+    ]] }
+  }).catch(e => console.error('Admin notify failed:', e.message));
 
   console.log(`📬 New request notified: ${req.title}`);
 });
 
+// REQUEST STATUS CHANGED → notify the client in their language.
+// Fires regardless of whether the change came from the bot buttons or the website.
+db.ref('requests').on('child_changed', async (snap) => {
+  if (!warmedUp) return;
+  const req = snap.val();
+  if (!req || !req.status) return;
+  // Only react to meaningful status changes, and avoid re-sending the same one
+  if (req._lastNotifiedStatus === req.status) return;
+  if (req.status !== 'inprogress' && req.status !== 'done') return;
+
+  await snap.ref.update({ _lastNotifiedStatus: req.status });
+
+  const clients = await get('clients') || {};
+  const client = Object.values(clients).find(c => c.id === req.clientId);
+  if (!client || !client.tgChatId) return;
+
+  const lang = client.lang || 'ru';
+  const msg = req.status === 'done'
+    ? tr(lang).reqDone(req.title || '')
+    : tr(lang).reqInProgress(req.title || '');
+  bot.sendMessage(client.tgChatId, msg, { parse_mode: 'Markdown' }).catch(()=>{});
+  console.log(`🔔 Client notified about status "${req.status}": ${req.title}`);
+});
+
+// NEW REPORT → notify admin with "send to client" button
+db.ref('reports').on('child_added', async (snap) => {
+  if (!warmedUp) return;
+  const rep = snap.val();
+  if (!rep || rep._adminNotified) return;
+  await snap.ref.update({ _adminNotified: true });
+  if (!ADMIN_ID) return;
+
+  const props = await get('properties') || {};
+  const clients = await get('clients') || {};
+  const prop = props[rep.propId];
+  const client = prop ? Object.values(clients).find(c => c.id === prop.clientId) : null;
+  const cond = { ok: '✅ Норма', warning: '⚠️ Замечание', issue: '❌ Проблема' };
+
+  const text = `📋 *Новый отчёт создан*\n\n🏠 ${prop?.address || '—'}\n👤 ${client?.name || '—'}\nСостояние: ${cond[rep.condition] || '—'}\n${rep.photoUrls?.length ? `📷 Фото: ${rep.photoUrls.length}` : ''}`;
+
+  const buttons = [];
+  if (client?.tgChatId) buttons.push([{ text: '✈ Отправить клиенту', callback_data: `rep:send:${rep.id}` }]);
+
+  bot.sendMessage(ADMIN_ID, text, {
+    parse_mode: 'Markdown',
+    reply_markup: buttons.length ? { inline_keyboard: buttons } : undefined
+  }).catch(e => console.error('Report notify failed:', e.message));
+
+  console.log(`📋 New report notified: ${prop?.address}`);
+});
+
+// ── INLINE BUTTON HANDLER (manage statuses from chat) ────────
+bot.on('callback_query', async (q) => {
+  try {
+    const [domain, action, id] = (q.data || '').split(':');
+    const fromAdmin = String(q.message.chat.id) === String(ADMIN_ID);
+
+    if (domain === 'req' && fromAdmin) {
+      await update(`requests/${id}`, { status: action });
+      const label = action === 'done' ? '✅ Выполнено' : '🔧 В работе';
+      await bot.answerCallbackQuery(q.id, { text: `Статус: ${label}` });
+      await bot.editMessageReplyMarkup(
+        { inline_keyboard: [[{ text: `Статус обновлён: ${label}`, callback_data: 'noop' }]] },
+        { chat_id: q.message.chat.id, message_id: q.message.message_id }
+      ).catch(()=>{});
+      // Client notification is handled centrally by the requests child_changed
+      // listener, so it fires the same way whether status is changed here or on the site.
+      return;
+    }
+
+    if (domain === 'rep' && action === 'send' && fromAdmin) {
+      const rep = await get(`reports/${id}`);
+      const props = await get('properties') || {};
+      const clients = await get('clients') || {};
+      const prop = rep ? props[rep.propId] : null;
+      const client = prop ? Object.values(clients).find(c => c.id === prop.clientId) : null;
+      if (!client || !client.tgChatId) {
+        return bot.answerCallbackQuery(q.id, { text: 'У клиента нет Telegram', show_alert: true });
+      }
+      const lang = client.lang || 'ru';
+      const cond = { ok: tr(lang).condOk, warning: tr(lang).condWarning, issue: tr(lang).condIssue };
+      const tasks = (rep.tasks || []).map(t => `  ✓ ${t}`).join('\n');
+      await bot.sendMessage(client.tgChatId,
+        tr(lang).lastReport(prop.address, formatDate(rep.date || rep.createdAt), cond[rep.condition] || '—', tasks, rep.comment || '—'),
+        { parse_mode: 'Markdown' }
+      ).catch(()=>{});
+      await update(`reports/${id}`, { sentToClient: true });
+      await bot.answerCallbackQuery(q.id, { text: '✅ Отправлено клиенту' });
+      await bot.editMessageReplyMarkup(
+        { inline_keyboard: [[{ text: '✅ Отправлено клиенту', callback_data: 'noop' }]] },
+        { chat_id: q.message.chat.id, message_id: q.message.message_id }
+      ).catch(()=>{});
+      return;
+    }
+
+    await bot.answerCallbackQuery(q.id).catch(()=>{});
+  } catch (e) {
+    console.error('callback_query error:', e.message);
+    bot.answerCallbackQuery(q.id, { text: 'Ошибка' }).catch(()=>{});
+  }
+});
+
 console.log('✅ Bot handlers registered. Waiting for messages…');
+
+// Warm up after a short delay so initial Firebase sync settles first
+setTimeout(warmUp, 4000);
 
 // ── 24H VISIT REMINDERS ──────────────────────────────────────
 // Checks once per hour for visits happening "tomorrow" and notifies the
@@ -558,3 +721,67 @@ async function checkReminders() {
 // Run shortly after startup, then hourly
 setTimeout(checkReminders, 15000);
 setInterval(checkReminders, 60 * 60 * 1000);
+
+// ── BILLING SCHEDULER ────────────────────────────────────────
+// Hourly: on the 1st of the month auto-create invoices (once), and any time —
+// mark past-period pending invoices overdue and remind those clients (once).
+function ymToken(d = new Date()) { return `${d.getFullYear()}_${d.getMonth() + 1}`; }
+function ymLabel(d = new Date()) { return d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }); }
+
+async function checkBilling() {
+  try {
+    const props = await get('properties') || {};
+    const invoices = await get('invoices') || {};
+    const clients = await get('clients') || {};
+    const TARIFF_PRICE = { basic: 50, standard: 75, premium: 100 };
+    const now = new Date();
+    const period = ymLabel(now);
+    const token = ymToken(now);
+
+    // 1) Auto-generate invoices on the 1st of the month (idempotent per property+month)
+    if (now.getDate() === 1) {
+      let created = 0;
+      for (const p of Object.values(props)) {
+        const invId = `${p.id}_${token}`;
+        if (invoices[invId]) continue;
+        await set(`invoices/${invId}`, {
+          id: invId, propId: p.id, clientId: p.clientId,
+          period, amount: TARIFF_PRICE[p.tariff] || 0,
+          status: 'pending', createdAt: Date.now()
+        });
+        created++;
+      }
+      if (created && ADMIN_ID) {
+        bot.sendMessage(ADMIN_ID, `🧾 Авто-счета за ${period}: создано ${created}`).catch(()=>{});
+        console.log(`🧾 Auto-invoices created: ${created}`);
+      }
+    }
+
+    // 2) Overdue handling: pending invoice from a previous month → overdue + remind client once
+    for (const inv of Object.values(invoices)) {
+      if (inv.status !== 'pending') continue;
+      const invToken = (inv.id || '').split('_').slice(-2).join('_');
+      if (!invToken || invToken === token) continue; // current month, skip
+
+      await update(`invoices/${inv.id}`, { status: 'overdue' });
+
+      if (inv._payReminded) continue;
+      const client = Object.values(clients).find(c => c.id === inv.clientId);
+      if (client && client.tgChatId) {
+        const lang = client.lang || 'ru';
+        const prop = props[inv.propId] || {};
+        bot.sendMessage(client.tgChatId,
+          tr(lang).payReminder(prop.address || '—', inv.amount || 0, inv.period || ''),
+          { parse_mode: 'Markdown' }
+        ).catch(()=>{});
+        console.log(`💳 Payment reminder sent to ${client.name}`);
+      }
+      await update(`invoices/${inv.id}`, { _payReminded: true });
+    }
+  } catch (e) {
+    console.error('checkBilling failed:', e.message);
+  }
+}
+
+setTimeout(checkBilling, 25000);
+setInterval(checkBilling, 60 * 60 * 1000);
