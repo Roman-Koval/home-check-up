@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v12-2026-05-22';
+const BOT_VERSION = 'v14-2026-05-25';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -171,12 +171,34 @@ const T = {
     typePlanned: 'Planifiée', requestKeyword: 'demande:',
     kb: [['🏠 Mon bien', '📋 Dernier rapport'], ['📅 Prochaine visite', '📬 Demande']],
   },
+  tr: {
+    welcome: (n, list) => `🏛 *CyprusGuard*\n\nMerhaba, *${n}*! 👋\n\nMülkleriniz:\n${list}`,
+    noProps: '  Mülk yok',
+    unknown: (n, u, id) => `🏛 *CyprusGuard*\n\nMerhaba, ${n}! 👋\n\nKıbrıs'ta bir emlak yönetim ajansının botuyum.\n\nErişim için ajansla iletişime geçin:\n📞 +357 99 123 456\n\nTelegram'ınız: @${u || 'kullanıcı adı yok'}\nChat ID: \`${id}\``,
+    noObjects: 'Hiç mülkünüz yok',
+    objHeader: (addr, status, tariff, next) => `🏠 *${addr}*\n\nDurum: ${status}\nTarife: ${tariff}\nSonraki ziyaret: ${next}`,
+    notPlanned: 'planlanmadı',
+    noReports: 'Henüz rapor yok',
+    lastReport: (addr, date, cond, tasks, comment) => `📋 *Son rapor*\n\n📍 ${addr}\n📅 ${date}\n\n*Durum:* ${cond}\n\n*Yapılanlar:*\n${tasks}\n\n📝 ${comment}`,
+    noVisits: '📅 Planlanmış ziyaret yok',
+    nextVisit: (addr, date, type, tasks) => `📅 *Sonraki ziyaret*\n\n📍 ${addr}\n🗓 ${date}\nTür: ${type}\n\n*Görevler:*\n${tasks}`,
+    requestPrompt: '📬 Talep göndermek için — sonraki mesajınızı "Talep:" ile başlatarak yazın\n\nÖrnek:\n_Talep: mutfak musluğu damlıyor_',
+    requestAccepted: '✅ Talep alındı! 24 saat içinde sizinle iletişime geçeceğiz.',
+    payReminder: (addr, amt, period) => `💳 Ödeme hatırlatması\n\n🏠 ${addr}\n📅 Dönem: ${period}\n💶 Tutar: €${amt}\n\nLütfen faturanızı ödeyin. Teşekkürler!`,
+    reqInProgress: (t) => `🔧 Talebiniz işleme alındı:\n"${t}"\n\nİlgileniyoruz.`,
+    reqDone: (t) => `✅ Talebiniz tamamlandı:\n"${t}"\n\nTeşekkür ederiz!`,
+    notRegistered: (id) => `❌ Kayıtlı değilsiniz.\n\nChat ID: \`${id}\`\n\nBunu ajansa bildirin: +357 99 123 456`,
+    condOk: '✅ Her şey yolunda', condWarning: '⚠️ Not', condIssue: '❌ Sorun',
+    statusOk: '✅', statusWarning: '⚠️', statusIssue: '❌',
+    typePlanned: 'Planlandı', requestKeyword: 'talep:',
+    kb: [['🏠 Mülküm', '📋 Son rapor'], ['📅 Sonraki ziyaret', '📬 Talep']],
+  },
 };
 
 function tr(lang) { return T[lang] || T.ru; }
 function clientKbFor(lang) { return { reply_markup: { keyboard: tr(lang).kb, resize_keyboard: true } }; }
 // All request keywords across languages, so the catch-all works regardless of UI language
-const REQUEST_KEYWORDS = ['заявка:', 'request:', 'anfrage:', 'demande:'];
+const REQUEST_KEYWORDS = ['заявка:', 'request:', 'anfrage:', 'demande:', 'talep:'];
 
 // ── KEYBOARDS ────────────────────────────────────────────────
 const adminKb = {
@@ -624,6 +646,44 @@ db.ref('reports').on('child_added', async (snap) => {
   console.log(`📋 New report notified: ${prop?.address}`);
 });
 
+// Deliver a report to its client in Telegram (text + photos). Used by the
+// admin "✈ Отправить клиенту" button AND by the website flag sendToClient.
+async function deliverReportToClient(repId) {
+  const rep = await get(`reports/${repId}`);
+  if (!rep) return { ok: false, reason: 'no_report' };
+  const props = await get('properties') || {};
+  const clients = await get('clients') || {};
+  const prop = props[rep.propId];
+  const client = prop ? Object.values(clients).find(c => c.id === prop.clientId) : null;
+  if (!client || !client.tgChatId) return { ok: false, reason: 'no_chat' };
+
+  const lang = client.lang || 'ru';
+  const cond = { ok: tr(lang).condOk, warning: tr(lang).condWarning, issue: tr(lang).condIssue };
+  const tasks = (rep.tasks || []).map(t => `  ✓ ${t}`).join('\n');
+  await bot.sendMessage(client.tgChatId,
+    tr(lang).lastReport(prop.address, formatDate(rep.date || rep.createdAt), cond[rep.condition] || '—', tasks, rep.comment || '—'),
+    { parse_mode: 'Markdown' }
+  ).catch(()=>{});
+
+  // Photos: works for public URLs. base64 dataURLs are skipped (Telegram can't fetch them).
+  for (const url of (rep.photoUrls || []).slice(0, 10)) {
+    if (typeof url === 'string' && url.startsWith('http')) {
+      await bot.sendPhoto(client.tgChatId, url).catch(()=>{});
+    }
+  }
+  await update(`reports/${repId}`, { sentToClient: true, sendToClient: false, tgSent: true });
+  console.log(`✈ Report delivered to ${client.name}`);
+  return { ok: true };
+}
+
+// Website flag → bot delivers the report (reliable path, handles photos)
+db.ref('reports').on('child_changed', async (snap) => {
+  if (!warmedUp) return;
+  const rep = snap.val();
+  if (!rep || !rep.sendToClient || rep.sentToClient) return;
+  await deliverReportToClient(snap.key);
+});
+
 // ── INLINE BUTTON HANDLER (manage statuses from chat) ────────
 bot.on('callback_query', async (q) => {
   try {
@@ -634,32 +694,23 @@ bot.on('callback_query', async (q) => {
       await update(`requests/${id}`, { status: action });
       const label = action === 'done' ? '✅ Выполнено' : '🔧 В работе';
       await bot.answerCallbackQuery(q.id, { text: `Статус: ${label}` });
-      await bot.editMessageReplyMarkup(
-        { inline_keyboard: [[{ text: `Статус обновлён: ${label}`, callback_data: 'noop' }]] },
+
+      // After "in progress" keep a "Done" button available; after "done" remove buttons.
+      const nextMarkup = action === 'done'
+        ? { inline_keyboard: [[{ text: '✅ Заявка выполнена', callback_data: 'noop' }]] }
+        : { inline_keyboard: [[{ text: '✅ Выполнено', callback_data: `req:done:${id}` }]] };
+      await bot.editMessageReplyMarkup(nextMarkup,
         { chat_id: q.message.chat.id, message_id: q.message.message_id }
       ).catch(()=>{});
-      // Client notification is handled centrally by the requests child_changed
-      // listener, so it fires the same way whether status is changed here or on the site.
+      // Client notification handled by the requests child_changed listener.
       return;
     }
 
     if (domain === 'rep' && action === 'send' && fromAdmin) {
-      const rep = await get(`reports/${id}`);
-      const props = await get('properties') || {};
-      const clients = await get('clients') || {};
-      const prop = rep ? props[rep.propId] : null;
-      const client = prop ? Object.values(clients).find(c => c.id === prop.clientId) : null;
-      if (!client || !client.tgChatId) {
+      const res = await deliverReportToClient(id);
+      if (!res.ok) {
         return bot.answerCallbackQuery(q.id, { text: 'У клиента нет Telegram', show_alert: true });
       }
-      const lang = client.lang || 'ru';
-      const cond = { ok: tr(lang).condOk, warning: tr(lang).condWarning, issue: tr(lang).condIssue };
-      const tasks = (rep.tasks || []).map(t => `  ✓ ${t}`).join('\n');
-      await bot.sendMessage(client.tgChatId,
-        tr(lang).lastReport(prop.address, formatDate(rep.date || rep.createdAt), cond[rep.condition] || '—', tasks, rep.comment || '—'),
-        { parse_mode: 'Markdown' }
-      ).catch(()=>{});
-      await update(`reports/${id}`, { sentToClient: true });
       await bot.answerCallbackQuery(q.id, { text: '✅ Отправлено клиенту' });
       await bot.editMessageReplyMarkup(
         { inline_keyboard: [[{ text: '✅ Отправлено клиенту', callback_data: 'noop' }]] },
