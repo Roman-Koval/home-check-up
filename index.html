@@ -222,6 +222,8 @@
         <div id="invoicesList" class="invoices-list"></div>
         <div class="section-title">Доходность</div>
         <div class="bar-chart-wrap"><div class="bar-chart" id="barChart"></div></div>
+        <div class="section-title" id="debtorsTitle" style="display:none">Должники</div>
+        <div id="debtorsList"></div>
       </section>
 
       <!-- SETTINGS -->
@@ -236,6 +238,8 @@
             <input type="color" id="setColor" value="#c9a84c" style="width:44px;height:32px;border:none;background:none;cursor:pointer;border-radius:6px"/>
             <button class="btn-secondary" id="resetColorBtn" style="font-size:12px;padding:6px 10px">Сброс</button>
           </div>
+          <label class="settings-label" style="margin-top:14px;display:block">Ссылка на оплату <span style="color:var(--text3);font-weight:400">(Revolut / Stripe / банк)</span></label>
+          <input type="text" class="settings-input" id="setPayLink" placeholder="https://revolut.me/... или Stripe Payment Link" style="margin-top:6px"/>
           <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
             <div id="logoPreview" style="width:48px;height:48px;border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;flex-shrink:0">🏛️</div>
             <div>

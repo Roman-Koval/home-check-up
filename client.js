@@ -242,6 +242,12 @@ async function loadClientData() {
   Client.requests = Object.values(allReqs).filter(r => r.clientId === cid)
     .sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
 
+  // Agency settings (payment link, contacts)
+  try {
+    const settings = await DB.once('settings/agency');
+    Client.agency = settings || {};
+  } catch (e) { Client.agency = {}; }
+
   renderOverview();
   renderAllReports();
   renderMyRequests();
@@ -274,6 +280,19 @@ function renderOverview() {
   document.getElementById('ckpiVisits').textContent = Client.visits.length;
   document.getElementById('ckpiReports').textContent = Client.reports.length;
   document.getElementById('ckpiNext').textContent = upcoming.length ? formatDateShort(upcoming[0].date) : '—';
+
+  // Payment button (if agency configured a payment link)
+  const payBlock = document.getElementById('clientPayBlock');
+  if (payBlock) {
+    const link = Client.agency && Client.agency.payLink;
+    if (link) {
+      const payLabels = { ru:'💳 Оплатить обслуживание', en:'💳 Pay for service', de:'💳 Service bezahlen', fr:'💳 Payer le service', tr:'💳 Hizmeti öde' };
+      payBlock.style.display = 'block';
+      payBlock.innerHTML = `<a href="${link}" target="_blank" rel="noopener" style="display:block;text-align:center;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#8a6020);color:#000;font-weight:600;text-decoration:none">${payLabels[LANG]||payLabels.ru}</a>`;
+    } else {
+      payBlock.style.display = 'none';
+    }
+  }
 
   // Recent reports
   document.getElementById('clientRecentReports').innerHTML = Client.reports.slice(0,3).map((r, i) => reportCardHTML(r, i)).join('')

@@ -310,6 +310,8 @@ function bindAppEvents() {
       document.getElementById('setName').value  = s.agency.name  || '';
       document.getElementById('setCity').value  = s.agency.city  || '';
       document.getElementById('setPhone').value = s.agency.phone || '';
+      const plInput = document.getElementById('setPayLink');
+      if (plInput) plInput.value = s.agency.payLink || '';
       if (s.agency.color) {
         const cInput = document.getElementById('setColor');
         if (cInput) cInput.value = s.agency.color;
@@ -1575,6 +1577,31 @@ function renderBilling() {
 
   // Bar chart — last 6 months of actually-paid revenue, fallback to projection
   renderRevenueChart(list);
+
+  // Debtors: clients with overdue/pending invoices, grouped by client
+  const owing = {};
+  list.filter(i => i.status === 'overdue' || i.status === 'pending').forEach(i => {
+    if (!owing[i.clientId]) owing[i.clientId] = { sum: 0, count: 0, overdue: false };
+    owing[i.clientId].sum += i.amount || 0;
+    owing[i.clientId].count++;
+    if (i.status === 'overdue') owing[i.clientId].overdue = true;
+  });
+  const debtors = Object.entries(owing).sort((a,b) => b[1].sum - a[1].sum);
+  const dTitle = document.getElementById('debtorsTitle');
+  const dList = document.getElementById('debtorsList');
+  if (dTitle && dList) {
+    if (debtors.length) {
+      dTitle.style.display = '';
+      dList.innerHTML = debtors.map(([cid, d]) => `
+        <div class="invoice-item" style="${d.overdue?'border-color:var(--red,#e05c5c)':''}">
+          <div class="invoice-info"><div class="invoice-client">${getClientName(cid)}</div><div class="invoice-period">${d.count} счёт(ов)${d.overdue?' · есть просрочка':''}</div></div>
+          <div class="invoice-amount" style="${d.overdue?'color:var(--red,#e05c5c)':''}">€${d.sum}</div>
+        </div>`).join('');
+    } else {
+      dTitle.style.display = 'none';
+      dList.innerHTML = '';
+    }
+  }
 }
 
 function renderRevenueChart(list) {
@@ -1819,6 +1846,7 @@ async function saveSettings() {
     city:  document.getElementById('setCity').value.trim(),
     phone: document.getElementById('setPhone').value.trim(),
     color,
+    payLink: document.getElementById('setPayLink')?.value.trim() || '',
   };
   if (State.pendingLogo) payload.logo = State.pendingLogo;
   await DB.update('settings/agency', payload);
