@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v16-2026-05-25';
+const BOT_VERSION = 'v19-2026-05-25';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -206,7 +206,7 @@ const adminKb = {
     keyboard: [
       ['📊 Сводка', '🔔 Заявки'],
       ['🏠 Объекты', '👥 Клиенты'],
-      ['📤 Разослать отчёт'],
+      ['➕ Создать', '📤 Разослать отчёт'],
     ],
     resize_keyboard: true,
   }
@@ -334,6 +334,20 @@ bot.onText(/📬/, async (msg) => {
 // Catch-all for "Заявка:/Request:/Anfrage:/Demande:" messages
 bot.on('message', async (msg) => {
   const text = (msg.text || '').trim();
+
+  // Active creation wizard (admin) takes priority over everything else,
+  // but let the reply-keyboard buttons through so menu still works.
+  if (String(msg.chat.id) === String(ADMIN_ID) && wizards[msg.chat.id]) {
+    const menuButtons = ['📊 Сводка','🔔 Заявки','🏠 Объекты','👥 Клиенты','➕ Создать','📤 Разослать отчёт'];
+    if (!menuButtons.includes(text)) {
+      const handled = await wizHandleText(msg.chat.id, text);
+      if (handled) return;
+    } else {
+      // User tapped a menu button mid-wizard → cancel the wizard silently and let it proceed
+      wizCancel(msg.chat.id, true);
+    }
+  }
+
   const lower = text.toLowerCase();
   const matched = REQUEST_KEYWORDS.find(kw => lower.startsWith(kw));
   if (!matched) return;
@@ -378,6 +392,7 @@ bot.onText(/\/help|\/start@|\/menu/, async (msg) => {
       `🔔 Заявки — новые заявки\n` +
       `🏠 Объекты — список объектов\n` +
       `👥 Клиенты — список клиентов\n` +
+      `➕ Создать — клиент / объект / визит / отчёт\n` +
       `📤 Разослать отчёт\n\n` +
       `/diag — диагностика\n/testreq — тестовая заявка\n/testbilling — проверить счета сейчас\n/help — это меню\n\n` +
       `💡 Под новыми заявками есть кнопки «🔧 В работу» / «✅ Выполнено» — статус меняется прямо здесь.`,
@@ -580,24 +595,192 @@ bot.on('error', (err) => console.error('⚠️ Bot error:', err.message || err))
 process.on('unhandledRejection', (r) => console.error('⚠️ Unhandled rejection:', r && r.message ? r.message : r));
 process.on('uncaughtException',  (e) => console.error('⚠️ Uncaught exception:', e && e.message ? e.message : e));
 
-// ── REALTIME NOTIFICATIONS ───────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  CREATION WIZARDS (admin) — create client / property / visit / report
+//  Multi-step dialogs. State per chat in `wizards`.
+// ══════════════════════════════════════════════════════════════
+const wizards = {}; // chatId -> { kind, step, data }
+const TARIFF_PRICE_W = { basic: 50, standard: 75, premium: 100 };
+const TYPE_ICONS_W = { villa: '🏖️', apt: '🏢', studio: '🌊', house: '🏠' };
+const cancelKb = { reply_markup: { keyboard: [['❌ Отмена']], resize_keyboard: true } };
+
+function wizCancel(chatId, silent) {
+  delete wizards[chatId];
+  if (!silent) bot.sendMessage(chatId, 'Отменено.', adminKb);
+}
+
+// Entry menu
+bot.onText(/➕ Создать/, async (msg) => {
+  if (String(msg.chat.id) !== String(ADMIN_ID)) return;
+  bot.sendMessage(msg.chat.id, '➕ *Что создать?*', {
+    parse_mode: 'Markdown',
+    reply_markup: { inline_keyboard: [
+      [{ text: '👤 Клиента', callback_data: 'wiz:client' }],
+      [{ text: '🏠 Объект', callback_data: 'wiz:property' }],
+      [{ text: '📅 Визит', callback_data: 'wiz:visit' }],
+      [{ text: '📋 Отчёт', callback_data: 'wiz:report' }],
+    ] }
+  });
+});
+
+// Start a wizard
+async function wizStart(chatId, kind) {
+  wizards[chatId] = { kind, step: 0, data: {} };
+  if (kind === 'client') {
+    bot.sendMessage(chatId, '👤 *Новый клиент*\n\nВведите имя клиента:', { parse_mode: 'Markdown', ...cancelKb });
+  } else if (kind === 'property') {
+    bot.sendMessage(chatId, '🏠 *Новый объект*\n\nВведите адрес объекта:', { parse_mode: 'Markdown', ...cancelKb });
+  } else if (kind === 'visit' || kind === 'report') {
+    // Need a property first — show list as buttons
+    const props = await get('properties') || {};
+    const list = Object.values(props);
+    if (!list.length) { bot.sendMessage(chatId, 'Нет объектов. Сначала создайте объект.', adminKb); delete wizards[chatId]; return; }
+    const rows = list.slice(0, 30).map(p => [{ text: p.address, callback_data: `wizpick:${kind}:${p.id}` }]);
+    bot.sendMessage(chatId, `${kind === 'visit' ? '📅 *Новый визит*' : '📋 *Новый отчёт*'}\n\nВыберите объект:`, {
+      parse_mode: 'Markdown', reply_markup: { inline_keyboard: rows }
+    });
+  }
+}
+
+// Handle text steps of an active wizard. Returns true if handled.
+async function wizHandleText(chatId, text) {
+  const w = wizards[chatId];
+  if (!w) return false;
+  if (text === '❌ Отмена') { wizCancel(chatId); return true; }
+
+  // ---- CLIENT ----
+  if (w.kind === 'client') {
+    if (w.step === 0) { w.data.name = text; w.step = 1; bot.sendMessage(chatId, 'Страна (или «-» чтобы пропустить):', cancelKb); return true; }
+    if (w.step === 1) { w.data.country = text === '-' ? '' : text; w.step = 2; bot.sendMessage(chatId, 'Телефон (или «-»):', cancelKb); return true; }
+    if (w.step === 2) { w.data.phone = text === '-' ? '' : text; w.step = 3; bot.sendMessage(chatId, 'Telegram @username (или «-»):', cancelKb); return true; }
+    if (w.step === 3) {
+      w.data.tg = text === '-' ? '' : text.replace('@','');
+      w.step = 4;
+      bot.sendMessage(chatId, 'Язык клиента:', { reply_markup: { inline_keyboard: [
+        [{ text:'Русский', callback_data:'wizlang:ru'},{ text:'English', callback_data:'wizlang:en'}],
+        [{ text:'Deutsch', callback_data:'wizlang:de'},{ text:'Français', callback_data:'wizlang:fr'}],
+        [{ text:'Türkçe', callback_data:'wizlang:tr'}],
+      ] } });
+      return true;
+    }
+  }
+
+  // ---- PROPERTY ----
+  if (w.kind === 'property') {
+    if (w.step === 0) {
+      w.data.address = text; w.step = 1;
+      const clients = await get('clients') || {};
+      const list = Object.values(clients);
+      const rows = list.slice(0,30).map(c => [{ text: c.name, callback_data: `wizpc:${c.id}` }]);
+      rows.push([{ text: '— без клиента —', callback_data: 'wizpc:none' }]);
+      bot.sendMessage(chatId, 'Кому принадлежит объект?', { reply_markup: { inline_keyboard: rows } });
+      return true;
+    }
+    if (w.step === 2) { w.data.notes = text === '-' ? '' : text; await wizFinishProperty(chatId); return true; }
+  }
+
+  // ---- VISIT ----
+  if (w.kind === 'visit') {
+    if (w.step === 1) { // date entered
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) { bot.sendMessage(chatId, 'Формат даты: ГГГГ-ММ-ДД (напр. 2026-06-15). Повторите:', cancelKb); return true; }
+      w.data.date = text; w.step = 2;
+      bot.sendMessage(chatId, 'Заметка к визиту (или «-»):', cancelKb); return true;
+    }
+    if (w.step === 2) { w.data.notes = text === '-' ? '' : text; await wizFinishVisit(chatId); return true; }
+  }
+
+  // ---- REPORT ----
+  if (w.kind === 'report') {
+    if (w.step === 2) { w.data.comment = text === '-' ? '' : text; await wizFinishReport(chatId); return true; }
+  }
+  return false;
+}
+
+async function wizFinishClient(chatId) {
+  const w = wizards[chatId]; const d = w.data;
+  const id = 'c' + Date.now();
+  const token = 'tok-' + Math.random().toString(36).slice(2,10);
+  const colors = ['#4fc3a1','#f0a500','#9b8db0','#5e81ff','#e05c5c','#c9a84c'];
+  await set(`clients/${id}`, {
+    id, name: d.name, country: d.country||'', phone: d.phone||'', tg: d.tg||'',
+    lang: d.lang||'ru', accessToken: token, tgChatId: '', monthly: 0,
+    color: colors[Math.floor(Math.random()*colors.length)], _fromBot: true
+  });
+  delete wizards[chatId];
+  bot.sendMessage(chatId, `✅ Клиент создан: *${d.name}*`, { parse_mode:'Markdown', ...adminKb });
+}
+
+async function wizFinishProperty(chatId) {
+  const w = wizards[chatId]; const d = w.data;
+  const id = 'p' + Date.now();
+  await set(`properties/${id}`, {
+    id, address: d.address, clientId: d.clientId||'', type: d.type||'apt',
+    tariff: d.tariff||'basic', notes: d.notes||'', status: 'ok',
+    icon: TYPE_ICONS_W[d.type||'apt'], nextVisit: '', _fromBot: true
+  });
+  delete wizards[chatId];
+  bot.sendMessage(chatId, `✅ Объект создан: *${d.address}*\nТариф: ${d.tariff} (€${TARIFF_PRICE_W[d.tariff]||0})`, { parse_mode:'Markdown', ...adminKb });
+}
+
+async function wizFinishVisit(chatId) {
+  const w = wizards[chatId]; const d = w.data;
+  const id = 'v' + Date.now();
+  await set(`visits/${id}`, {
+    id, propId: d.propId, date: d.date, type: d.type||'planned',
+    notes: d.notes||'', tasks: ['Проветривание','Проверка','Фотофиксация'], status: 'planned', _fromBot: true
+  });
+  delete wizards[chatId];
+  const props = await get('properties') || {};
+  bot.sendMessage(chatId, `✅ Визит создан: *${props[d.propId]?.address||''}* на ${d.date}`, { parse_mode:'Markdown', ...adminKb });
+}
+
+async function wizFinishReport(chatId) {
+  const w = wizards[chatId]; const d = w.data;
+  const id = 'r' + Date.now();
+  await set(`reports/${id}`, {
+    id, propId: d.propId, visitId: d.visitId||'', date: new Date().toISOString().slice(0,10),
+    condition: d.condition||'ok', comment: d.comment||'', tasks: ['Проветривание','Проверка'],
+    photoUrls: [], createdAt: Date.now(), tgSent: false, _adminNotified: true
+  });
+  // Mark related property condition
+  if (d.condition) await update(`properties/${d.propId}`, { status: d.condition });
+  delete wizards[chatId];
+  const props = await get('properties') || {};
+  bot.sendMessage(chatId, `✅ Отчёт создан: *${props[d.propId]?.address||''}*\nСостояние: ${d.condition}`, { parse_mode:'Markdown', ...adminKb });
+}
+
+
 // On first boot, mark everything that already exists as "notified" so we
 // don't spam the admin with the backlog. After that, any genuinely new
 // child fires a notification. This does NOT rely on clock sync (the old
 // BOT_START approach silently dropped requests when times were close).
 let warmedUp = false;
+const BOT_START_MS = Date.now();
+
+// Extract creation timestamp from an auto-id like p1779..., v1779..., c1779...
+function idTimestamp(id) {
+  const m = /(\d{10,})/.exec(String(id || ''));
+  return m ? parseInt(m[1], 10) : 0;
+}
 
 async function warmUp() {
-  const [reqs, reps] = await Promise.all([
-    get('requests').then(v => v || {}),
-    get('reports').then(v => v || {}),
-  ]);
-  const updates = {};
-  for (const id of Object.keys(reqs)) if (!reqs[id]._adminNotified) updates[`requests/${id}/_adminNotified`] = true;
-  for (const id of Object.keys(reps)) if (!reps[id]._adminNotified) updates[`reports/${id}/_adminNotified`] = true;
-  if (Object.keys(updates).length) await db.ref().update(updates);
-  warmedUp = true;
-  console.log(`✅ Warm-up done. Existing items marked (requests:${Object.keys(reqs).length}, reports:${Object.keys(reps).length}). Now watching for NEW ones.`);
+  try {
+    const [reqs, reps] = await Promise.all([
+      get('requests').then(v => v || {}).catch(() => ({})),
+      get('reports').then(v => v || {}).catch(() => ({})),
+    ]);
+    const updates = {};
+    for (const id of Object.keys(reqs)) if (!reqs[id]._adminNotified) updates[`requests/${id}/_adminNotified`] = true;
+    for (const id of Object.keys(reps)) if (!reps[id]._adminNotified) updates[`reports/${id}/_adminNotified`] = true;
+    if (Object.keys(updates).length) await db.ref().update(updates).catch(e => console.error('warmUp update failed:', e.message));
+    console.log(`✅ Warm-up done. Existing items marked (requests:${Object.keys(reqs).length}, reports:${Object.keys(reps).length}). Now watching for NEW ones.`);
+  } catch (e) {
+    console.error('⚠️ Warm-up error (continuing anyway):', e.message);
+  } finally {
+    // ALWAYS enable notifications, even if warm-up failed — otherwise the bot
+    // would silently ignore all new requests forever.
+    warmedUp = true;
+  }
 }
 
 // NEW REQUEST → notify admin with action buttons
@@ -732,11 +915,132 @@ db.ref('reports').on('child_changed', async (snap) => {
   await deliverReportToClient(snap.key);
 });
 
+// ── NEW ENTITY NOTIFICATIONS (property / visit / client) ─────
+// Notify admin when these are created in the app. Uses the timestamp baked
+// into the auto-id to skip everything that existed before the bot started,
+// so we don't spam the backlog on boot. Records created by the bot's own
+// wizards carry _fromBot:true and are skipped (admin already knows).
+
+db.ref('properties').on('child_added', async (snap) => {
+  if (!warmedUp || !ADMIN_ID) return;
+  const p = snap.val();
+  if (!p || p._fromBot) return;
+  if (idTimestamp(snap.key) < BOT_START_MS) return;
+  const clients = await get('clients') || {};
+  const owner = p.clientId ? Object.values(clients).find(c => c.id === p.clientId) : null;
+  const tariff = { basic:'Basic €50', standard:'Standard €75', premium:'Premium €100' };
+  bot.sendMessage(ADMIN_ID,
+    `🏠 *Новый объект добавлен*\n\n📍 ${p.address || '—'}\n👤 ${owner?.name || 'без клиента'}\nТариф: ${tariff[p.tariff] || p.tariff || '—'}`,
+    { parse_mode: 'Markdown' }).catch(()=>{});
+  console.log(`🏠 Property-created notified: ${p.address}`);
+});
+
+db.ref('visits').on('child_added', async (snap) => {
+  if (!warmedUp || !ADMIN_ID) return;
+  const v = snap.val();
+  if (!v || v._fromBot) return;
+  if (idTimestamp(snap.key) < BOT_START_MS) return;
+  const props = await get('properties') || {};
+  const prop = props[v.propId];
+  const types = { planned:'Плановый', urgent:'Срочный', initial:'Первичный', seasonal:'Сезонный' };
+  bot.sendMessage(ADMIN_ID,
+    `📅 *Новый визит запланирован*\n\n🏠 ${prop?.address || '—'}\n🗓 ${v.date || '—'}\nТип: ${types[v.type] || v.type || '—'}`,
+    { parse_mode: 'Markdown' }).catch(()=>{});
+  console.log(`📅 Visit-created notified: ${prop?.address} ${v.date}`);
+});
+
+db.ref('clients').on('child_added', async (snap) => {
+  if (!warmedUp || !ADMIN_ID) return;
+  const c = snap.val();
+  if (!c || c._fromBot) return;
+  if (idTimestamp(snap.key) < BOT_START_MS) return;
+  bot.sendMessage(ADMIN_ID,
+    `👤 *Новый клиент добавлен*\n\n${c.name || '—'}\n${c.country || ''} ${c.phone ? '· ' + c.phone : ''}`,
+    { parse_mode: 'Markdown' }).catch(()=>{});
+  console.log(`👤 Client-created notified: ${c.name}`);
+});
+
 // ── INLINE BUTTON HANDLER (manage statuses from chat) ────────
 bot.on('callback_query', async (q) => {
   try {
     const [domain, action, id] = (q.data || '').split(':');
     const fromAdmin = String(q.message.chat.id) === String(ADMIN_ID);
+    const chatId = q.message.chat.id;
+
+    // ---- WIZARD callbacks (admin) ----
+    if (domain === 'wiz' && fromAdmin) {
+      await bot.answerCallbackQuery(q.id).catch(()=>{});
+      await wizStart(chatId, action); // action = client|property|visit|report
+      return;
+    }
+    if (domain === 'wizpick' && fromAdmin) { // picked a property for visit/report
+      await bot.answerCallbackQuery(q.id).catch(()=>{});
+      const kind = action; const propId = id;
+      wizards[chatId] = { kind, step: 1, data: { propId } };
+      if (kind === 'visit') {
+        wizards[chatId].step = 0;
+        // ask type first
+        bot.sendMessage(chatId, 'Тип визита:', { reply_markup: { inline_keyboard: [
+          [{ text:'Плановый', callback_data:'wizvt:planned'},{ text:'Срочный', callback_data:'wizvt:urgent'}],
+          [{ text:'Первичный', callback_data:'wizvt:initial'},{ text:'Сезонный', callback_data:'wizvt:seasonal'}],
+        ] } });
+      } else {
+        // report → ask condition
+        bot.sendMessage(chatId, 'Состояние объекта:', { reply_markup: { inline_keyboard: [
+          [{ text:'✅ Всё в порядке', callback_data:'wizrc:ok'}],
+          [{ text:'⚠️ Есть замечания', callback_data:'wizrc:warning'}],
+          [{ text:'❌ Проблема', callback_data:'wizrc:issue'}],
+        ] } });
+      }
+      return;
+    }
+    if (domain === 'wizlang' && fromAdmin && wizards[chatId]) { // client language chosen → finish
+      await bot.answerCallbackQuery(q.id).catch(()=>{});
+      wizards[chatId].data.lang = action;
+      await wizFinishClient(chatId);
+      return;
+    }
+    if (domain === 'wizpc' && fromAdmin && wizards[chatId]) { // property → client chosen
+      await bot.answerCallbackQuery(q.id).catch(()=>{});
+      wizards[chatId].data.clientId = action === 'none' ? '' : action;
+      wizards[chatId].step = 1.5;
+      bot.sendMessage(chatId, 'Тип объекта:', { reply_markup: { inline_keyboard: [
+        [{ text:'🏢 Квартира', callback_data:'wizpt:apt'},{ text:'🏖️ Вилла', callback_data:'wizpt:villa'}],
+        [{ text:'🏠 Дом', callback_data:'wizpt:house'},{ text:'🌊 Студия', callback_data:'wizpt:studio'}],
+      ] } });
+      return;
+    }
+    if (domain === 'wizpt' && fromAdmin && wizards[chatId]) { // property type chosen
+      await bot.answerCallbackQuery(q.id).catch(()=>{});
+      wizards[chatId].data.type = action;
+      bot.sendMessage(chatId, 'Тариф:', { reply_markup: { inline_keyboard: [
+        [{ text:'Basic €50', callback_data:'wizta:basic'}],
+        [{ text:'Standard €75', callback_data:'wizta:standard'}],
+        [{ text:'Premium €100', callback_data:'wizta:premium'}],
+      ] } });
+      return;
+    }
+    if (domain === 'wizta' && fromAdmin && wizards[chatId]) { // tariff chosen
+      await bot.answerCallbackQuery(q.id).catch(()=>{});
+      wizards[chatId].data.tariff = action;
+      wizards[chatId].step = 2;
+      bot.sendMessage(chatId, 'Заметка к объекту (или «-»):', cancelKb);
+      return;
+    }
+    if (domain === 'wizvt' && fromAdmin && wizards[chatId]) { // visit type chosen
+      await bot.answerCallbackQuery(q.id).catch(()=>{});
+      wizards[chatId].data.type = action;
+      wizards[chatId].step = 1;
+      bot.sendMessage(chatId, 'Дата визита (ГГГГ-ММ-ДД, напр. 2026-06-15):', cancelKb);
+      return;
+    }
+    if (domain === 'wizrc' && fromAdmin && wizards[chatId]) { // report condition chosen
+      await bot.answerCallbackQuery(q.id).catch(()=>{});
+      wizards[chatId].data.condition = action;
+      wizards[chatId].step = 2;
+      bot.sendMessage(chatId, 'Комментарий к отчёту (или «-»):', cancelKb);
+      return;
+    }
 
     if (domain === 'req' && fromAdmin) {
       await update(`requests/${id}`, { status: action, _changedBy: 'bot' });
@@ -778,6 +1082,8 @@ console.log('✅ Bot handlers registered. Waiting for messages…');
 
 // Warm up after a short delay so initial Firebase sync settles first
 setTimeout(warmUp, 4000);
+// Safety net: never let the bot stay "not warmed up" forever
+setTimeout(() => { if (!warmedUp) { warmedUp = true; console.log('⚠️ Warm-up fallback: notifications force-enabled'); } }, 30000);
 
 // ── 24H VISIT REMINDERS ──────────────────────────────────────
 // Checks once per hour for visits happening "tomorrow" and notifies the
