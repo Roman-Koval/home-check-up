@@ -28,6 +28,7 @@ const State = {
   currentVisitId: null,
   editingPropId: null,
   editingClientId: null,
+  pendingLogo: null,
   uploadedPhotos: [],   // { file, dataUrl, storageUrl }
   uploadedVideo: null,
   deferredInstall: null,
@@ -275,6 +276,15 @@ function bindAppEvents() {
     if (cInput) cInput.value = def;
     applyBrandColor(def);
   });
+  // Logo upload
+  document.getElementById('uploadLogoBtn')?.addEventListener('click', () => document.getElementById('logoInput').click());
+  document.getElementById('logoInput')?.addEventListener('change', handleLogoUpload);
+  document.getElementById('removeLogoBtn')?.addEventListener('click', async () => {
+    State.pendingLogo = null;
+    await DB.update('settings/agency', { logo: '' });
+    applyLogo('');
+    showToast('Логотип убран');
+  });
 
   // Billing
   document.getElementById('genInvoicesBtn')?.addEventListener('click', generateMonthlyInvoices);
@@ -304,6 +314,11 @@ function bindAppEvents() {
         const cInput = document.getElementById('setColor');
         if (cInput) cInput.value = s.agency.color;
         applyBrandColor(s.agency.color);
+      }
+      if (s.agency.logo) {
+        applyLogo(s.agency.logo);
+        const rm = document.getElementById('removeLogoBtn');
+        if (rm) rm.style.display = 'inline-block';
       }
     }
     if (s.telegram && s.telegram.token) {
@@ -339,6 +354,8 @@ function handleAdd() {
     clearForm(['clientName','clientCountry','clientPhone','clientTg','clientChatId']);
   }
   if (State.page === 'reports') resetReportForm();
+  // On the billing page the + button generates monthly invoices instead of a visit
+  if (State.page === 'billing') { generateMonthlyInvoices(); return; }
   openModal(map[State.page] || 'addVisitModal');
 }
 
@@ -1655,7 +1672,7 @@ function downloadInvoicePdf(id) {
     .foot{margin-top:48px;padding-top:20px;border-top:1px solid #eef2f6;color:#9aa5b1;font-size:12px;text-align:center}
   </style></head><body>
     <div class="head">
-      <div><div class="brand">🏛 ${agency.name||'CyprusGuard Agency'}<small>Home Check-up Service</small></div></div>
+      <div><div class="brand">${agency.logo ? `<img src="${agency.logo}" style="height:32px;vertical-align:middle;margin-right:8px;border-radius:6px"/>` : '🏛 '}${agency.name||'CyprusGuard Agency'}<small>Home Check-up Service</small></div></div>
       <div class="inv-meta"><div class="inv-no">Счёт #${(inv.id||'').slice(-4)}</div><div>${inv.period||''}</div><div>${formatDate(inv.createdAt)}</div></div>
     </div>
     <div class="row">
@@ -1727,7 +1744,7 @@ function downloadReportPdf(id) {
     @media print{.photos img{height:120px}}
   </style></head><body>
     <div class="head">
-      <div><div class="brand">🏛 ${escapeHtml(agency.name||'CyprusGuard Agency')}<small>Home Check-up Service</small></div></div>
+      <div><div class="brand">${agency.logo ? `<img src="${agency.logo}" style="height:32px;vertical-align:middle;margin-right:8px;border-radius:6px"/>` : '🏛 '}${escapeHtml(agency.name||'CyprusGuard Agency')}<small>Home Check-up Service</small></div></div>
       <div class="meta"><div class="ttl">Отчёт о визите</div><div>${formatDate(r.date||r.createdAt)}</div></div>
     </div>
     <div class="row">
@@ -1797,13 +1814,16 @@ function exportInvoices() {
 // ── SETTINGS ─────────────────────────────────────────────────
 async function saveSettings() {
   const color = document.getElementById('setColor')?.value || '#c9a84c';
-  await DB.update('settings/agency', {
+  const payload = {
     name:  document.getElementById('setName').value.trim(),
     city:  document.getElementById('setCity').value.trim(),
     phone: document.getElementById('setPhone').value.trim(),
     color,
-  });
+  };
+  if (State.pendingLogo) payload.logo = State.pendingLogo;
+  await DB.update('settings/agency', payload);
   applyBrandColor(color);
+  State.pendingLogo = null;
   showToast('✅ Настройки сохранены!');
 }
 
@@ -1812,6 +1832,34 @@ function applyBrandColor(hex) {
   if (!hex) return;
   document.documentElement.style.setProperty('--accent', hex);
   document.documentElement.style.setProperty('--accent2', lightenHex(hex, 0.25));
+}
+
+async function handleLogoUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try {
+      const compressed = await compressImage(ev.target.result, 256, 0.8);
+      State.pendingLogo = compressed;
+      applyLogo(compressed);
+      document.getElementById('removeLogoBtn').style.display = 'inline-block';
+      showToast('Логотип загружен — нажмите «Сохранить»');
+    } catch(err) { showToast('Не удалось обработать изображение'); }
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function applyLogo(dataUrl) {
+  // Settings preview
+  const prev = document.getElementById('logoPreview');
+  if (prev) prev.innerHTML = dataUrl ? `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover"/>` : '🏛️';
+  // Sidebar brand icon
+  const brandIcon = document.querySelector('.brand-logo, .sidebar-header .brand-icon');
+  document.querySelectorAll('[data-brand-logo]').forEach(el => {
+    el.innerHTML = dataUrl ? `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:contain"/>` : '🏛️';
+  });
 }
 function lightenHex(hex, amt) {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);

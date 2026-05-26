@@ -49,7 +49,7 @@
 <div id="app" class="app hidden">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="brand"><span class="brand-icon">🏛️</span><div><div class="brand-name">CyprusGuard</div><div class="brand-sub">Admin Panel</div></div></div>
+      <div class="brand"><span class="brand-icon" data-brand-logo style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;overflow:hidden">🏛️</span><div><div class="brand-name">CyprusGuard</div><div class="brand-sub">Admin Panel</div></div></div>
       <button class="sidebar-close" id="sidebarClose">✕</button>
     </div>
     <nav class="sidebar-nav">
@@ -235,6 +235,14 @@
             <label style="font-size:13px;color:var(--text2)">Фирменный цвет:</label>
             <input type="color" id="setColor" value="#c9a84c" style="width:44px;height:32px;border:none;background:none;cursor:pointer;border-radius:6px"/>
             <button class="btn-secondary" id="resetColorBtn" style="font-size:12px;padding:6px 10px">Сброс</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+            <div id="logoPreview" style="width:48px;height:48px;border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;flex-shrink:0">🏛️</div>
+            <div>
+              <button class="btn-secondary" id="uploadLogoBtn" style="font-size:12px;padding:6px 12px">📷 Загрузить логотип</button>
+              <button class="btn-secondary" id="removeLogoBtn" style="font-size:12px;padding:6px 10px;display:none">Убрать</button>
+              <input type="file" id="logoInput" accept="image/*" style="display:none"/>
+            </div>
           </div>
         </div>
         <div class="settings-group">

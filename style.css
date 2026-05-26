@@ -1,7 +1,7 @@
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; -webkit-tap-highlight-color: transparent; }
-body { font-family: 'DM Sans', sans-serif; background: #070f1e; color: #e8e4d8; overflow: hidden; height: 100dvh; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100dvh; }
 
 /* ===== CSS VARIABLES ===== */
 :root {
@@ -32,20 +32,41 @@ body { font-family: 'DM Sans', sans-serif; background: #070f1e; color: #e8e4d8; 
 
 /* ===== LIGHT THEME ===== */
 [data-theme="light"] {
-  --bg: #f4f6fb;
+  --bg: #eef1f7;
   --bg2: #ffffff;
-  --bg3: #eef2f9;
+  --bg3: #e7ecf5;
   --surface: #ffffff;
-  --surface2: #f0f3f9;
-  --border: rgba(20,35,60,0.10);
-  --border2: rgba(20,35,60,0.16);
+  --surface2: #f3f6fb;
+  --border: rgba(26,42,68,0.10);
+  --border2: rgba(26,42,68,0.16);
+  --accent: #b8923a;
+  --accent2: #d4a948;
   --text: #1a2332;
-  --text2: #4a5a72;
-  --text3: #8a98ad;
+  --text2: #50617a;
+  --text3: #93a0b4;
   --shadow: 0 8px 32px rgba(30,50,90,0.12);
   --shadow-sm: 0 2px 8px rgba(30,50,90,0.08);
   --shadow-card: 0 4px 20px rgba(30,50,90,0.10);
 }
+
+/* Light theme: fix gradients that were hardcoded dark */
+[data-theme="light"] .page-hero {
+  background: linear-gradient(135deg, #1a3a6b 0%, #25508c 100%);
+}
+[data-theme="light"] .kpi-primary {
+  background: linear-gradient(135deg, #1a3a6b, #25508c);
+  border-color: rgba(201,168,76,0.4);
+}
+[data-theme="light"] .kpi-alert {
+  background: linear-gradient(135deg, #fff, #fdeeee);
+}
+[data-theme="light"] .kpi-card { background: var(--surface); }
+[data-theme="light"] .nav-item.active { background: rgba(201,168,76,0.12); }
+[data-theme="light"] .sidebar, [data-theme="light"] .topbar { background: var(--bg2); }
+[data-theme="light"] .icon-btn, [data-theme="light"] .theme-toggle { background: var(--surface2); }
+/* Client portal light-theme gradient fixes */
+[data-theme="light"] .client-hero { background: linear-gradient(135deg, #1a3a6b, #25508c); }
+[data-theme="light"] .client-report-tag { background: rgba(26,42,68,0.05); }
 
 /* Smooth theme transitions */
 body, .sidebar, .topbar, .card, .property-card, .client-card,
@@ -623,6 +644,30 @@ select.form-input option { background: var(--bg2); }
   .fab { display: flex; }
   #addBtn { display: none; }
   .bar-chart { gap: 4px; }
+
+  /* Mobile polish */
+  .topbar { padding: 0 12px; gap: 6px; }
+  .page-title { font-size: 18px; }
+  .hero-greeting { font-size: 10px; }
+  .page-hero { padding: 18px 16px; }
+  .analytics-grid { grid-template-columns: 1fr; gap: 10px; }
+  .modal { width: 100%; max-width: 100%; max-height: 92dvh; border-radius: 18px 18px 0 0; margin-top: auto; }
+  .modal-backdrop { align-items: flex-end; }
+  .modal-body { max-height: 70dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .modal-footer { flex-wrap: wrap; gap: 8px; position: sticky; bottom: 0; background: var(--surface); padding-top: 12px; }
+  .modal-footer .btn-primary, .modal-footer .btn-secondary { flex: 1; min-width: 120px; min-height: 44px; }
+  .form-input, .settings-input, .form-select { font-size: 16px; min-height: 44px; } /* 16px prevents iOS zoom */
+  .nav-item { padding-top: 14px; padding-bottom: 14px; } /* bigger touch targets */
+  .client-link-btn { min-height: 36px; }
+  .detail-row { padding: 12px 0; }
+  .topbar-actions { gap: 6px; }
+  .icon-btn, .theme-toggle { width: 38px; height: 38px; }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .kpi-value { font-size: 26px; }
 }
 @media (min-width: 641px) and (max-width: 900px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
@@ -893,3 +938,25 @@ textarea.form-input { resize: vertical; min-height: 70px; }
 .kpi-clickable { cursor: pointer; }
 .kpi-clickable:hover { transform: translateY(-2px); border-color: var(--accent); }
 .kpi-clickable:active { transform: scale(0.98); }
+
+/* ── MOBILE FINAL POLISH ── */
+@media (max-width: 640px) {
+  /* Safe areas for notched phones */
+  .topbar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .fab { bottom: max(20px, env(safe-area-inset-bottom)); right: max(16px, env(safe-area-inset-right)); }
+  .page { padding-bottom: 90px; } /* room above FAB */
+  /* Brand text smaller so topbar fits */
+  .brand-name { font-size: 15px; }
+  .brand-sub { font-size: 9px; }
+  /* Toasts above FAB */
+  .toast { bottom: 84px; }
+  /* Tables/rows scroll nicely */
+  .invoices-list, .visits-list, .requests-list { -webkit-overflow-scrolling: touch; }
+  /* Prevent horizontal overflow */
+  body, .main { overflow-x: hidden; }
+}
+/* Landscape phones: keep modal usable */
+@media (max-height: 480px) and (orientation: landscape) {
+  .modal { max-height: 96dvh; }
+  .modal-body { max-height: 60dvh; }
+}

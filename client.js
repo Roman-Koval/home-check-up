@@ -464,7 +464,25 @@ function renderInfo() {
 }
 
 // ── EVENTS ───────────────────────────────────────────────────
+function applyClientTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('clientThemeToggle');
+  if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+}
+
 function bindEvents() {
+  // Theme toggle
+  const themeBtn = document.getElementById('clientThemeToggle');
+  if (themeBtn) {
+    const saved = (() => { try { return localStorage.getItem('cg-theme'); } catch(e) { return null; } })();
+    applyClientTheme(saved === 'light' ? 'light' : 'dark');
+    themeBtn.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      applyClientTheme(next);
+      try { localStorage.setItem('cg-theme', next); } catch(e) {}
+    });
+  }
+
   // Tabs
   document.querySelectorAll('.client-tab').forEach(tab => {
     tab.addEventListener('click', () => {

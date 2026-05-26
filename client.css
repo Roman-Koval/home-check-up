@@ -130,3 +130,28 @@ select.client-input option { background:var(--bg2); }
 /* Dropdown options render on a white system menu — force dark readable text */
 .lang-switcher option { color: #1a2332; background: #fff; }
 .client-user { display: flex; align-items: center; gap: 6px; }
+
+/* ===== MOBILE POLISH (client portal) ===== */
+@media (max-width: 640px) {
+  .client-tab { font-size: 11px; padding: 12px 4px; min-height: 46px; }
+  .client-kpi-val { font-size: 18px; }
+  .client-hero { padding: 16px; }
+  .client-prop-address { font-size: 18px; }
+  .req-type-btn { min-height: 44px; }
+  #sendReqBtn { min-height: 48px; font-size: 15px; }
+  .client-content { padding: 14px 12px 30px; }
+  textarea, input, select { font-size: 16px; } /* prevent iOS zoom */
+  .modal { width: 100%; max-width: 100%; border-radius: 18px 18px 0 0; }
+  .modal-backdrop { align-items: flex-end; }
+}
+
+/* ── LIGHT THEME (client portal) ── */
+[data-theme="light"] .client-hero {
+  background: linear-gradient(135deg, #1a3a6b, #25508c);
+  color: #fff;
+}
+[data-theme="light"] .client-hero .client-hero-sub,
+[data-theme="light"] .client-hero .client-hero-title { color: #fff; }
+[data-theme="light"] .client-header { background: var(--bg2); }
+[data-theme="light"] .client-tabs { background: var(--bg2); }
+[data-theme="light"] .lang-switcher option { color: #1a2332; background: #fff; }
