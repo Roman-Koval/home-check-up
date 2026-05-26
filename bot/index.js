@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v19-2026-05-25';
+const BOT_VERSION = 'v20-2026-05-25';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -1190,3 +1190,50 @@ async function checkBilling(force = false) {
 
 setTimeout(checkBilling, 25000);
 setInterval(checkBilling, 60 * 60 * 1000);
+
+// ── MORNING AGENDA ───────────────────────────────────────────
+// Once per day (around 08:00 server time) send the admin today's visits.
+let lastAgendaDay = '';
+async function morningAgenda(force = false) {
+  try {
+    const now = new Date();
+    const hour = now.getHours();
+    const todayStr = now.toISOString().slice(0, 10);
+    if (!force) {
+      if (hour < 8 || hour > 10) return;          // only morning window
+      if (lastAgendaDay === todayStr) return;      // already sent today
+    }
+    lastAgendaDay = todayStr;
+    if (!ADMIN_ID) return;
+
+    const visits = await get('visits') || {};
+    const props = await get('properties') || {};
+    const todayVisits = Object.values(visits)
+      .filter(v => v.date === todayStr && v.status !== 'done')
+      .sort((a, b) => (a.type > b.type ? 1 : -1));
+
+    if (!todayVisits.length) {
+      if (force) bot.sendMessage(ADMIN_ID, '☀️ *Доброе утро!*\n\nНа сегодня визитов не запланировано.', { parse_mode: 'Markdown' }).catch(()=>{});
+      return;
+    }
+    const types = { planned: 'Плановый', urgent: 'Срочный', initial: 'Первичный', seasonal: 'Сезонный' };
+    const lines = todayVisits.map(v => {
+      const p = props[v.propId] || {};
+      return `• ${p.address || '—'} — ${types[v.type] || v.type || ''}`;
+    }).join('\n');
+    bot.sendMessage(ADMIN_ID,
+      `☀️ *Доброе утро!*\n\n📅 Визиты на сегодня (${todayVisits.length}):\n${lines}`,
+      { parse_mode: 'Markdown' }).catch(()=>{});
+    console.log(`☀️ Morning agenda sent: ${todayVisits.length} visits`);
+  } catch (e) {
+    console.error('morningAgenda failed:', e.message);
+  }
+}
+setTimeout(() => morningAgenda(), 30000);
+setInterval(morningAgenda, 60 * 60 * 1000);
+
+// Admin command to see today's agenda on demand
+bot.onText(/\/today|📅 Сегодня/, async (msg) => {
+  if (String(msg.chat.id) !== String(ADMIN_ID)) return;
+  await morningAgenda(true);
+});
