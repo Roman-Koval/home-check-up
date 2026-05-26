@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v18-2026-05-25';
+const BOT_VERSION = 'v19-2026-05-25';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -704,7 +704,7 @@ async function wizFinishClient(chatId) {
   await set(`clients/${id}`, {
     id, name: d.name, country: d.country||'', phone: d.phone||'', tg: d.tg||'',
     lang: d.lang||'ru', accessToken: token, tgChatId: '', monthly: 0,
-    color: colors[Math.floor(Math.random()*colors.length)]
+    color: colors[Math.floor(Math.random()*colors.length)], _fromBot: true
   });
   delete wizards[chatId];
   bot.sendMessage(chatId, `✅ Клиент создан: *${d.name}*`, { parse_mode:'Markdown', ...adminKb });
@@ -716,7 +716,7 @@ async function wizFinishProperty(chatId) {
   await set(`properties/${id}`, {
     id, address: d.address, clientId: d.clientId||'', type: d.type||'apt',
     tariff: d.tariff||'basic', notes: d.notes||'', status: 'ok',
-    icon: TYPE_ICONS_W[d.type||'apt'], nextVisit: ''
+    icon: TYPE_ICONS_W[d.type||'apt'], nextVisit: '', _fromBot: true
   });
   delete wizards[chatId];
   bot.sendMessage(chatId, `✅ Объект создан: *${d.address}*\nТариф: ${d.tariff} (€${TARIFF_PRICE_W[d.tariff]||0})`, { parse_mode:'Markdown', ...adminKb });
@@ -727,7 +727,7 @@ async function wizFinishVisit(chatId) {
   const id = 'v' + Date.now();
   await set(`visits/${id}`, {
     id, propId: d.propId, date: d.date, type: d.type||'planned',
-    notes: d.notes||'', tasks: ['Проветривание','Проверка','Фотофиксация'], status: 'planned'
+    notes: d.notes||'', tasks: ['Проветривание','Проверка','Фотофиксация'], status: 'planned', _fromBot: true
   });
   delete wizards[chatId];
   const props = await get('properties') || {};
@@ -755,6 +755,13 @@ async function wizFinishReport(chatId) {
 // child fires a notification. This does NOT rely on clock sync (the old
 // BOT_START approach silently dropped requests when times were close).
 let warmedUp = false;
+const BOT_START_MS = Date.now();
+
+// Extract creation timestamp from an auto-id like p1779..., v1779..., c1779...
+function idTimestamp(id) {
+  const m = /(\d{10,})/.exec(String(id || ''));
+  return m ? parseInt(m[1], 10) : 0;
+}
 
 async function warmUp() {
   try {
@@ -906,6 +913,51 @@ db.ref('reports').on('child_changed', async (snap) => {
   const rep = snap.val();
   if (!rep || !rep.sendToClient || rep.sentToClient) return;
   await deliverReportToClient(snap.key);
+});
+
+// ── NEW ENTITY NOTIFICATIONS (property / visit / client) ─────
+// Notify admin when these are created in the app. Uses the timestamp baked
+// into the auto-id to skip everything that existed before the bot started,
+// so we don't spam the backlog on boot. Records created by the bot's own
+// wizards carry _fromBot:true and are skipped (admin already knows).
+
+db.ref('properties').on('child_added', async (snap) => {
+  if (!warmedUp || !ADMIN_ID) return;
+  const p = snap.val();
+  if (!p || p._fromBot) return;
+  if (idTimestamp(snap.key) < BOT_START_MS) return;
+  const clients = await get('clients') || {};
+  const owner = p.clientId ? Object.values(clients).find(c => c.id === p.clientId) : null;
+  const tariff = { basic:'Basic €50', standard:'Standard €75', premium:'Premium €100' };
+  bot.sendMessage(ADMIN_ID,
+    `🏠 *Новый объект добавлен*\n\n📍 ${p.address || '—'}\n👤 ${owner?.name || 'без клиента'}\nТариф: ${tariff[p.tariff] || p.tariff || '—'}`,
+    { parse_mode: 'Markdown' }).catch(()=>{});
+  console.log(`🏠 Property-created notified: ${p.address}`);
+});
+
+db.ref('visits').on('child_added', async (snap) => {
+  if (!warmedUp || !ADMIN_ID) return;
+  const v = snap.val();
+  if (!v || v._fromBot) return;
+  if (idTimestamp(snap.key) < BOT_START_MS) return;
+  const props = await get('properties') || {};
+  const prop = props[v.propId];
+  const types = { planned:'Плановый', urgent:'Срочный', initial:'Первичный', seasonal:'Сезонный' };
+  bot.sendMessage(ADMIN_ID,
+    `📅 *Новый визит запланирован*\n\n🏠 ${prop?.address || '—'}\n🗓 ${v.date || '—'}\nТип: ${types[v.type] || v.type || '—'}`,
+    { parse_mode: 'Markdown' }).catch(()=>{});
+  console.log(`📅 Visit-created notified: ${prop?.address} ${v.date}`);
+});
+
+db.ref('clients').on('child_added', async (snap) => {
+  if (!warmedUp || !ADMIN_ID) return;
+  const c = snap.val();
+  if (!c || c._fromBot) return;
+  if (idTimestamp(snap.key) < BOT_START_MS) return;
+  bot.sendMessage(ADMIN_ID,
+    `👤 *Новый клиент добавлен*\n\n${c.name || '—'}\n${c.country || ''} ${c.phone ? '· ' + c.phone : ''}`,
+    { parse_mode: 'Markdown' }).catch(()=>{});
+  console.log(`👤 Client-created notified: ${c.name}`);
 });
 
 // ── INLINE BUTTON HANDLER (manage statuses from chat) ────────
