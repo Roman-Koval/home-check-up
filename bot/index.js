@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v20-2026-05-25';
+const BOT_VERSION = 'v21-2026-05-25';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -245,10 +245,22 @@ bot.onText(/\/start/, async (msg) => {
   }
 
   // Unknown user
-  return bot.sendMessage(chatId,
+  await bot.sendMessage(chatId,
     tr('ru').unknown(name, tgUser, chatId),
     { parse_mode: 'Markdown' }
   );
+  // Notify admin with quick-link buttons to attach this chat to a client
+  if (ADMIN_ID) {
+    const clients = await get('clients') || {};
+    const unlinked = Object.values(clients).filter(c => !c.tgChatId).slice(0, 12);
+    const rows = unlinked.map(c => [{ text: `🔗 ${c.name}`, callback_data: `link:${chatId}:${c.id}` }]);
+    rows.push([{ text: '➕ Создать нового клиента', callback_data: `linknew:${chatId}` }]);
+    bot.sendMessage(ADMIN_ID,
+      `👤 *Новый пользователь бота*\n\n${name}${tgUser ? ' (@' + tgUser + ')' : ''}\nChat ID: \`${chatId}\`\n\nПривязать к клиенту?`,
+      { parse_mode: 'Markdown', reply_markup: { inline_keyboard: rows } }
+    ).catch(()=>{});
+  }
+  return;
 });
 
 // ── CLIENT COMMANDS (matched by emoji, language-independent) ──
@@ -703,10 +715,13 @@ async function wizFinishClient(chatId) {
   const colors = ['#4fc3a1','#f0a500','#9b8db0','#5e81ff','#e05c5c','#c9a84c'];
   await set(`clients/${id}`, {
     id, name: d.name, country: d.country||'', phone: d.phone||'', tg: d.tg||'',
-    lang: d.lang||'ru', accessToken: token, tgChatId: '', monthly: 0,
+    lang: d.lang||'ru', accessToken: token, tgChatId: d._linkChat ? String(d._linkChat) : '', monthly: 0,
     color: colors[Math.floor(Math.random()*colors.length)], _fromBot: true
   });
   delete wizards[chatId];
+  if (d._linkChat) {
+    bot.sendMessage(d._linkChat, `✅ ${d.name}, доступ открыт! Используйте меню ниже.`, clientKbFor(d.lang||'ru')).catch(()=>{});
+  }
   bot.sendMessage(chatId, `✅ Клиент создан: *${d.name}*`, { parse_mode:'Markdown', ...adminKb });
 }
 
@@ -1039,6 +1054,29 @@ bot.on('callback_query', async (q) => {
       wizards[chatId].data.condition = action;
       wizards[chatId].step = 2;
       bot.sendMessage(chatId, 'Комментарий к отчёту (или «-»):', cancelKb);
+      return;
+    }
+
+    // ---- QUICK-LINK a Telegram user to a client (admin) ----
+    if (domain === 'link' && fromAdmin) {
+      const targetChat = action; const clientId = id;
+      await update(`clients/${clientId}`, { tgChatId: String(targetChat) });
+      const c = await get(`clients/${clientId}`);
+      await bot.answerCallbackQuery(q.id, { text: '✅ Привязано' });
+      await bot.editMessageReplyMarkup(
+        { inline_keyboard: [[{ text: `✅ Привязан к: ${c?.name || clientId}`, callback_data: 'noop' }]] },
+        { chat_id: q.message.chat.id, message_id: q.message.message_id }
+      ).catch(()=>{});
+      // greet the now-linked client
+      const lang = c?.lang || 'ru';
+      bot.sendMessage(targetChat, tr(lang).requestAccepted ? `✅ ${c?.name||''}, доступ открыт! Используйте меню ниже.` : 'Доступ открыт!', clientKbFor(lang)).catch(()=>{});
+      return;
+    }
+    if (domain === 'linknew' && fromAdmin) {
+      await bot.answerCallbackQuery(q.id).catch(()=>{});
+      const targetChat = action;
+      wizards[chatId] = { kind: 'client', step: 0, data: { _linkChat: targetChat } };
+      bot.sendMessage(chatId, '👤 *Новый клиент* (будет привязан к этому Telegram)\n\nВведите имя клиента:', { parse_mode: 'Markdown', ...cancelKb });
       return;
     }
 
