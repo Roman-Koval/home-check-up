@@ -18,6 +18,7 @@ const State = {
   notifications: [],
   calDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   propFilter: 'all',
+  propCityFilter: 'all',
   propSearch: '',
   reqFilter: 'new',
   reportSearch: '',
@@ -215,6 +216,14 @@ function bindAppEvents() {
       document.querySelectorAll('[data-prop-filter]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       State.propFilter = btn.dataset.propFilter;
+      renderProperties();
+    });
+  });
+  document.querySelectorAll('[data-city-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-city-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      State.propCityFilter = btn.dataset.cityFilter;
       renderProperties();
     });
   });
@@ -508,6 +517,58 @@ const STATUS_COLORS = { ok: 'var(--teal)', warning: 'var(--orange)', issue: 'var
 const STATUS_LABELS = { ok: 'Норма', warning: 'Внимание', issue: 'Проблема' };
 const STATUS_CLASSES = { ok: 'status-done', warning: 'status-urgent', issue: 'status-issue' };
 const TYPE_ICONS = { villa: '🏖️', apt: '🏢', studio: '🌊', house: '🏠' };
+
+// Approx coordinates of Cyprus cities for map markers
+const CITY_COORDS = {
+  'Лимассол':  [34.7071, 33.0226],
+  'Пафос':     [34.7720, 32.4297],
+  'Ларнака':   [34.9229, 33.6233],
+  'Никосия':   [35.1856, 33.3823],
+  'Фамагуста': [35.1264, 33.9416],
+  'Кирения':   [35.3414, 33.3192],
+};
+let _propMap = null, _propMarkers = [];
+
+function togglePropView(view) {
+  const map = document.getElementById('propMap');
+  const grid = document.getElementById('propertiesGrid');
+  const lb = document.getElementById('viewListBtn');
+  const mb = document.getElementById('viewMapBtn');
+  if (view === 'map') {
+    map.style.display = 'block'; grid.style.display = 'none';
+    mb.classList.add('active'); lb.classList.remove('active');
+    renderPropMap();
+  } else {
+    map.style.display = 'none'; grid.style.display = '';
+    lb.classList.add('active'); mb.classList.remove('active');
+  }
+}
+
+function renderPropMap() {
+  if (typeof L === 'undefined') return;
+  if (!_propMap) {
+    _propMap = L.map('propMap').setView([34.9, 33.2], 9);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxZoom: 18
+    }).addTo(_propMap);
+  }
+  _propMarkers.forEach(m => _propMap.removeLayer(m));
+  _propMarkers = [];
+  const statusColor = { ok:'#4fc3a1', warning:'#f0a500', issue:'#e05c5c' };
+  Object.values(State.properties).forEach(p => {
+    const base = CITY_COORDS[p.city];
+    if (!base) return;
+    const lat = base[0] + (Math.random()-0.5)*0.03;
+    const lng = base[1] + (Math.random()-0.5)*0.03;
+    const color = statusColor[p.status] || '#c9a84c';
+    const marker = L.circleMarker([lat, lng], {
+      radius: 9, fillColor: color, color: '#fff', weight: 2, fillOpacity: 0.9
+    }).addTo(_propMap);
+    marker.bindPopup(`<b>${p.address}</b><br>${p.city||''}<br>${getClientName(p.clientId)}<br>${TARIFF_LABELS[p.tariff]||p.tariff}`);
+    _propMarkers.push(marker);
+  });
+  setTimeout(() => _propMap.invalidateSize(), 100);
+}
 const TARIFF_LABELS = { basic: 'Basic', standard: 'Standard', premium: 'Premium' };
 
 function renderProperties() {
@@ -515,9 +576,10 @@ function renderProperties() {
   const empty = document.getElementById('propEmpty');
   let list = Object.values(State.properties);
   if (State.propFilter !== 'all') list = list.filter(p => p.status === State.propFilter);
+  if (State.propCityFilter !== 'all') list = list.filter(p => (p.city||'') === State.propCityFilter);
   if (State.propSearch) {
     const q = State.propSearch.toLowerCase();
-    list = list.filter(p => (p.address||'').toLowerCase().includes(q) || getClientName(p.clientId).toLowerCase().includes(q));
+    list = list.filter(p => (p.address||'').toLowerCase().includes(q) || (p.city||'').toLowerCase().includes(q) || getClientName(p.clientId).toLowerCase().includes(q));
   }
 
   if (!list.length) { grid.innerHTML = ''; empty?.classList.remove('hidden'); return; }
@@ -533,7 +595,7 @@ function renderProperties() {
         <div style="flex:1">
           <div class="property-title">${p.address}</div>
           <div class="property-client">${client}</div>
-          <div class="property-location">${p.notes||''}</div>
+          <div class="property-location">${p.city ? '📍 ' + escapeHtml(p.city) : ''}${p.city && p.notes ? ' · ' : ''}${escapeHtml(p.notes||'')}</div>
           <div style="margin-top:6px"><span class="status-badge ${STATUS_CLASSES[p.status]||'status-done'}">${STATUS_LABELS[p.status]||'—'}</span></div>
         </div>
       </div>
@@ -657,6 +719,7 @@ function editProperty(id) {
   State.editingPropId = id;
   document.getElementById('propModalTitle').textContent = 'Редактировать объект';
   document.getElementById('propAddress').value = p.address || '';
+  if (document.getElementById('propCity')) document.getElementById('propCity').value = p.city || '';
   populateClientSelects();
   setTimeout(() => { document.getElementById('propClientSel').value = p.clientId || ''; }, 50);
   document.getElementById('propType').value = p.type || 'apt';
@@ -687,6 +750,7 @@ async function saveProperty() {
   const data = {
     address,
     clientId,
+    city:       document.getElementById('propCity')?.value || '',
     type:       document.getElementById('propType').value,
     tariff:     document.getElementById('propTariff').value,
     nextVisit:  document.getElementById('propNextVisit').value,

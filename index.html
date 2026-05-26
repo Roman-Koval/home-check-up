@@ -21,6 +21,8 @@
  
   <link rel="stylesheet" href="style.css"/>
   <link rel="stylesheet" href="admin.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -134,7 +136,21 @@
             <button class="chip" data-prop-filter="warning">Внимание</button>
             <button class="chip" data-prop-filter="issue">Проблема</button>
           </div>
+          <div class="filter-chips" style="margin-top:6px">
+            <button class="chip active" data-city-filter="all">🌍 Все города</button>
+            <button class="chip" data-city-filter="Лимассол">Лимассол</button>
+            <button class="chip" data-city-filter="Пафос">Пафос</button>
+            <button class="chip" data-city-filter="Ларнака">Ларнака</button>
+            <button class="chip" data-city-filter="Никосия">Никосия</button>
+            <button class="chip" data-city-filter="Фамагуста">Фамагуста</button>
+            <button class="chip" data-city-filter="Кирения">Кирения</button>
+          </div>
         </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="chip active" id="viewListBtn" onclick="togglePropView('list')">📋 Список</button>
+          <button class="chip" id="viewMapBtn" onclick="togglePropView('map')">🗺 Карта</button>
+        </div>
+        <div id="propMap" style="display:none;height:420px;border-radius:14px;overflow:hidden;margin-bottom:14px;border:1px solid var(--border)"></div>
         <div class="properties-grid" id="propertiesGrid"></div>
         <div class="empty-state hidden" id="propEmpty"><div style="font-size:48px">🏠</div><div>Нет объектов</div><button class="btn-primary" onclick="openModal('addPropertyModal')">+ Добавить</button></div>
       </section>
@@ -312,6 +328,16 @@
     <div class="modal-header"><div class="modal-title" id="propModalTitle">Новый объект</div><button class="modal-close" data-modal="addPropertyModal">✕</button></div>
     <div class="modal-body">
       <label class="form-label">Адрес *</label><input type="text" class="form-input" id="propAddress" placeholder="Limassol, Germasogeia…"/>
+      <label class="form-label">Город</label>
+      <select class="form-input" id="propCity">
+        <option value="">— не указан —</option>
+        <option value="Лимассол">Лимассол</option>
+        <option value="Пафос">Пафос</option>
+        <option value="Ларнака">Ларнака</option>
+        <option value="Никосия">Никосия</option>
+        <option value="Фамагуста">Фамагуста</option>
+        <option value="Кирения">Кирения</option>
+      </select>
       <label class="form-label">Клиент *</label><select class="form-input" id="propClientSel"></select>
       <label class="form-label">Тип</label>
       <select class="form-input" id="propType"><option value="apt">🏢 Квартира</option><option value="villa">🏖️ Вилла</option><option value="studio">🌊 Студия</option><option value="house">🏠 Дом</option></select>
