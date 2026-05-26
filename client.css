@@ -155,3 +155,11 @@ select.client-input option { background:var(--bg2); }
 [data-theme="light"] .client-header { background: var(--bg2); }
 [data-theme="light"] .client-tabs { background: var(--bg2); }
 [data-theme="light"] .lang-switcher option { color: #1a2332; background: #fff; }
+
+/* ── OFFLINE BANNER ── */
+.offline-banner {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
+  background: linear-gradient(135deg, #b8923a, #8a6020); color: #fff;
+  padding: 10px 16px; text-align: center; font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}

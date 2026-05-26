@@ -567,7 +567,10 @@ function renderPropMap() {
     marker.bindPopup(`<b>${p.address}</b><br>${p.city||''}<br>${getClientName(p.clientId)}<br>${TARIFF_LABELS[p.tariff]||p.tariff}`);
     _propMarkers.push(marker);
   });
+  // Mobile fix: container often has no size on first show — recalc a few times
   setTimeout(() => _propMap.invalidateSize(), 100);
+  setTimeout(() => _propMap.invalidateSize(), 400);
+  setTimeout(() => _propMap.invalidateSize(), 800);
 }
 const TARIFF_LABELS = { basic: 'Basic', standard: 'Standard', premium: 'Premium' };
 

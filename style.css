@@ -960,3 +960,20 @@ textarea.form-input { resize: vertical; min-height: 70px; }
   .modal { max-height: 96dvh; }
   .modal-body { max-height: 60dvh; }
 }
+
+/* ── LEAFLET MAP FIX ── */
+#propMap { width: 100%; min-height: 320px; }
+.leaflet-container { height: 100%; width: 100%; background: var(--bg2); }
+.leaflet-tile { max-width: none !important; }
+@media (max-width: 640px) {
+  #propMap { height: 360px !important; min-height: 360px; }
+}
+
+/* ── OFFLINE BANNER ── */
+.offline-banner {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
+  background: linear-gradient(135deg, #b8923a, #8a6020); color: #fff;
+  padding: 10px 16px; text-align: center; font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.3);
+}

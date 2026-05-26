@@ -27,6 +27,26 @@ const auth = firebase.auth();
 // Storage requires Blaze plan. App works without it — photos stored as base64 in DB.
 const storage = (typeof firebase.storage === 'function') ? firebase.storage() : null;
 
+// ── OFFLINE SUPPORT ─────────────────────────────────────────
+// Firebase RTDB queues writes made while offline and flushes them automatically
+// when the connection returns. We surface the connection state to the UI so the
+// user knows their data is pending, and keep key nodes synced for offline reads.
+window.CG_ONLINE = true;
+try {
+  ['properties','visits','reports','requests','clients','invoices','settings'].forEach(n => {
+    db.ref(n).keepSynced(true);
+  });
+} catch (e) { /* keepSynced not critical */ }
+
+db.ref('.info/connected').on('value', (snap) => {
+  const online = snap.val() === true;
+  window.CG_ONLINE = online;
+  const banner = document.getElementById('offlineBanner');
+  if (banner) banner.style.display = online ? 'none' : 'flex';
+  // Also reflect via a body class for styling
+  document.body && document.body.classList.toggle('is-offline', !online);
+});
+
 // ── 3. COLLECTIONS HELPER ───────────────────────────────────
 const DB = {
   // refs
