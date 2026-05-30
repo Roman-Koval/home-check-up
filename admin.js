@@ -370,8 +370,8 @@ function handleAdd() {
   openModal(map[State.page] || 'addVisitModal');
 }
 
-function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('open'); }
-function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('open'); document.body.classList.add('sidebar-open'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); document.body.classList.remove('sidebar-open'); }
 
 // ── HERO ─────────────────────────────────────────────────────
 function updateHero() {

@@ -962,11 +962,19 @@ textarea.form-input { resize: vertical; min-height: 70px; }
 }
 
 /* ── LEAFLET MAP FIX ── */
-#propMap { width: 100%; min-height: 320px; }
-.leaflet-container { height: 100%; width: 100%; background: var(--bg2); }
+#propMap { width: 100%; min-height: 320px; position: relative; z-index: 1; isolation: isolate; }
+.leaflet-container { height: 100%; width: 100%; background: var(--bg2); z-index: 1; }
 .leaflet-tile { max-width: none !important; }
+/* Keep all Leaflet internal layers below the sidebar (z-index 200) and overlay (190) */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control { z-index: 2 !important; }
+.leaflet-popup { z-index: 5 !important; }
 @media (max-width: 640px) {
   #propMap { height: 360px !important; min-height: 360px; }
+  /* When the slide-in menu is open, keep the map from showing through it */
+  body.sidebar-open #propMap { visibility: hidden; }
 }
 
 /* ── OFFLINE BANNER ── */
