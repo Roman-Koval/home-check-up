@@ -830,6 +830,9 @@ function clientMonthly(clientId) {
 
 function renderClients() {
   let list = Object.values(State.clients);
+  // Newest first: by createdAt, fallback to numeric part of the id (c1779...)
+  const ts = c => (c.createdAt || +String(c.id||'').replace(/\D/g,'') || 0);
+  list.sort((a, b) => ts(b) - ts(a));
   if (State.clientSearch) {
     const q = State.clientSearch.toLowerCase();
     list = list.filter(c =>
