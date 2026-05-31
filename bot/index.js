@@ -7,7 +7,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
 
-const BOT_VERSION = 'v21-2026-05-25';
+const BOT_VERSION = 'v22-2026-05-25';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -973,6 +973,26 @@ db.ref('clients').on('child_added', async (snap) => {
     `👤 *Новый клиент добавлен*\n\n${c.name || '—'}\n${c.country || ''} ${c.phone ? '· ' + c.phone : ''}`,
     { parse_mode: 'Markdown' }).catch(()=>{});
   console.log(`👤 Client-created notified: ${c.name}`);
+});
+
+// New LEAD from the marketing landing page → alert admin
+db.ref('leads').on('child_added', async (snap) => {
+  if (!warmedUp || !ADMIN_ID) return;
+  const l = snap.val();
+  if (!l) return;
+  if (idTimestamp(snap.key) < BOT_START_MS) return;
+  const tariff = { basic:'Basic €50', standard:'Standard €75', premium:'Premium €100' };
+  bot.sendMessage(ADMIN_ID,
+    `🎯 *Новая заявка с сайта*\n\n` +
+    `*${l.name || '—'}*\n` +
+    `📞 ${l.phone || '—'}\n` +
+    `📧 ${l.email || '—'}\n` +
+    `📍 ${l.city || '—'}\n` +
+    `💼 ${tariff[l.tariff] || l.tariff || 'не выбран'}\n` +
+    `🌐 ${(l.lang||'ru').toUpperCase()}\n\n` +
+    (l.message ? `_${l.message}_` : ''),
+    { parse_mode: 'Markdown' }).catch(()=>{});
+  console.log(`🎯 Lead notified: ${l.name} (${l.email})`);
 });
 
 // ── INLINE BUTTON HANDLER (manage statuses from chat) ────────
