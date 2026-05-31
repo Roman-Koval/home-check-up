@@ -19,7 +19,7 @@ const I18N = {
     photoOpt:'Фото (необязательно)', attachPhoto:'Прикрепить фото', sendBtn:'📤 Отправить заявку', myRequests:'Мои заявки',
     agencyDesc:'Профессиональный уход за вашей недвижимостью на Кипре',
     installTitle:'Установить приложение', installDesc:'Быстрый доступ с экрана телефона', install:'Установить',
-    close:'Закрыть', report:'Отчёт', yourTariff:'Ваш тариф', noReports:'Отчётов пока нет', noVisits:'Визитов пока нет', noProps:'Нет прикреплённых объектов.<br/>Обратитесь в агентство.',
+    rateVisit:'Оцените визит', rateThanks:'Спасибо за оценку!', close:'Закрыть', report:'Отчёт', yourTariff:'Ваш тариф', noReports:'Отчётов пока нет', noVisits:'Визитов пока нет', noProps:'Нет прикреплённых объектов.<br/>Обратитесь в агентство.',
     object:'Объект', date:'Дата', condition:'Состояние', photos:'Фото', video:'Видео', comment:'Комментарий', tasks:'Задачи', utility:'Счёт ЖКХ',
     statusOk:'✅ Всё в порядке', statusWarn:'⚠️ Есть замечания', statusIssue:'❌ Требует внимания',
     statusOkSub:'Последняя проверка прошла без замечаний', statusWarnSub:'Агент обнаружил незначительные проблемы', statusIssueSub:'Обнаружена проблема — мы уже работаем',
@@ -43,7 +43,7 @@ const I18N = {
     photoOpt:'Photos (optional)', attachPhoto:'Attach photo', sendBtn:'📤 Send request', myRequests:'My requests',
     agencyDesc:'Professional care for your property in Cyprus',
     installTitle:'Install the app', installDesc:'Quick access from your home screen', install:'Install',
-    close:'Close', report:'Report', yourTariff:'Your plan', noReports:'No reports yet', noVisits:'No visits yet', noProps:'No linked properties.<br/>Please contact the agency.',
+    rateVisit:'Rate this visit', rateThanks:'Thanks for your rating!', close:'Close', report:'Report', yourTariff:'Your plan', noReports:'No reports yet', noVisits:'No visits yet', noProps:'No linked properties.<br/>Please contact the agency.',
     object:'Property', date:'Date', condition:'Condition', photos:'Photos', video:'Video', comment:'Comment', tasks:'Tasks', utility:'Utility bill',
     statusOk:'✅ All good', statusWarn:'⚠️ Minor notes', statusIssue:'❌ Needs attention',
     statusOkSub:'Last check passed with no issues', statusWarnSub:'The agent found minor issues', statusIssueSub:'An issue was found — we are on it',
@@ -67,7 +67,7 @@ const I18N = {
     photoOpt:'Fotos (optional)', attachPhoto:'Foto anhängen', sendBtn:'📤 Anfrage senden', myRequests:'Meine Anfragen',
     agencyDesc:'Professionelle Pflege Ihrer Immobilie auf Zypern',
     installTitle:'App installieren', installDesc:'Schneller Zugriff vom Startbildschirm', install:'Installieren',
-    close:'Schließen', report:'Bericht', yourTariff:'Ihr Tarif', noReports:'Noch keine Berichte', noVisits:'Noch keine Besuche', noProps:'Keine verknüpften Objekte.<br/>Bitte kontaktieren Sie die Agentur.',
+    rateVisit:'Besuch bewerten', rateThanks:'Danke für Ihre Bewertung!', close:'Schließen', report:'Bericht', yourTariff:'Ihr Tarif', noReports:'Noch keine Berichte', noVisits:'Noch keine Besuche', noProps:'Keine verknüpften Objekte.<br/>Bitte kontaktieren Sie die Agentur.',
     object:'Objekt', date:'Datum', condition:'Zustand', photos:'Fotos', video:'Video', comment:'Kommentar', tasks:'Aufgaben', utility:'Nebenkosten',
     statusOk:'✅ Alles in Ordnung', statusWarn:'⚠️ Kleine Anmerkungen', statusIssue:'❌ Aufmerksamkeit nötig',
     statusOkSub:'Letzte Prüfung ohne Beanstandungen', statusWarnSub:'Der Agent fand kleine Probleme', statusIssueSub:'Ein Problem wurde gefunden — wir kümmern uns',
@@ -91,7 +91,7 @@ const I18N = {
     photoOpt:'Photos (facultatif)', attachPhoto:'Joindre une photo', sendBtn:'📤 Envoyer la demande', myRequests:'Mes demandes',
     agencyDesc:'Entretien professionnel de votre bien à Chypre',
     installTitle:'Installer l\'application', installDesc:'Accès rapide depuis l\'écran d\'accueil', install:'Installer',
-    close:'Fermer', report:'Rapport', yourTariff:'Votre forfait', noReports:'Pas encore de rapports', noVisits:'Pas encore de visites', noProps:'Aucun bien associé.<br/>Veuillez contacter l\'agence.',
+    rateVisit:'Évaluer la visite', rateThanks:'Merci pour votre évaluation !', close:'Fermer', report:'Rapport', yourTariff:'Votre forfait', noReports:'Pas encore de rapports', noVisits:'Pas encore de visites', noProps:'Aucun bien associé.<br/>Veuillez contacter l\'agence.',
     object:'Bien', date:'Date', condition:'État', photos:'Photos', video:'Vidéo', comment:'Commentaire', tasks:'Tâches', utility:'Charges',
     statusOk:'✅ Tout va bien', statusWarn:'⚠️ Remarques mineures', statusIssue:'❌ Attention requise',
     statusOkSub:'Dernier contrôle sans remarques', statusWarnSub:'L\'agent a trouvé des problèmes mineurs', statusIssueSub:'Un problème a été détecté — nous intervenons',
@@ -115,7 +115,7 @@ const I18N = {
     photoOpt:'Fotoğraf (isteğe bağlı)', attachPhoto:'Fotoğraf ekle', sendBtn:'📤 Talebi gönder', myRequests:'Taleplerim',
     agencyDesc:'Kıbrıs\'taki mülkünüz için profesyonel bakım',
     installTitle:'Uygulamayı yükle', installDesc:'Ana ekrandan hızlı erişim', install:'Yükle',
-    close:'Kapat', report:'Rapor', yourTariff:'Tarifeniz', noReports:'Henüz rapor yok', noVisits:'Henüz ziyaret yok', noProps:'Bağlı mülk yok.<br/>Lütfen ajansla iletişime geçin.',
+    rateVisit:'Ziyareti değerlendirin', rateThanks:'Değerlendirmeniz için teşekkürler!', close:'Kapat', report:'Rapor', yourTariff:'Tarifeniz', noReports:'Henüz rapor yok', noVisits:'Henüz ziyaret yok', noProps:'Bağlı mülk yok.<br/>Lütfen ajansla iletişime geçin.',
     object:'Mülk', date:'Tarih', condition:'Durum', photos:'Fotoğraflar', video:'Video', comment:'Yorum', tasks:'Görevler', utility:'Fatura',
     statusOk:'✅ Her şey yolunda', statusWarn:'⚠️ Küçük notlar', statusIssue:'❌ Dikkat gerekiyor',
     statusOkSub:'Son kontrol sorunsuz geçti', statusWarnSub:'Görevli küçük sorunlar buldu', statusIssueSub:'Bir sorun tespit edildi — ilgileniyoruz',
@@ -360,8 +360,28 @@ function openClientReport(id) {
       ${photoHtml}${videoHtml}
       <div><div style="${lbl}">${t('comment')}</div><div style="font-size:13px;color:var(--text2);line-height:1.6">${r.comment||'—'}</div></div>
       ${r.bill ? `<div><div style="${lbl}">${t('utility')}</div><div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--accent2)">€${r.bill}</div></div>` : ''}
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="${lbl};margin-bottom:8px">${t('rateVisit')}</div>
+        <div id="ratingStars" style="display:flex;gap:6px;font-size:30px">
+          ${[1,2,3,4,5].map(n => `<span data-star="${n}" onclick="setRating('${r.id}',${n})" style="cursor:pointer;filter:${(r.rating||0)>=n?'none':'grayscale(1) opacity(0.4)'}">⭐</span>`).join('')}
+        </div>
+        ${r.rating ? `<div style="font-size:12px;color:var(--teal);margin-top:6px">${t('rateThanks')}</div>` : ''}
+      </div>
     </div>`;
   openModal('clientReportModal');
+}
+
+async function setRating(reportId, stars) {
+  try {
+    await DB.update(`reports/${reportId}`, { rating: stars, ratedAt: Date.now() });
+    const rep = Client.reports.find(r => r.id === reportId);
+    if (rep) rep.rating = stars;
+    // Update stars visually
+    document.querySelectorAll('#ratingStars [data-star]').forEach(el => {
+      el.style.filter = stars >= +el.dataset.star ? 'none' : 'grayscale(1) opacity(0.4)';
+    });
+    showClientToast(t('rateThanks'));
+  } catch (e) { showClientToast('⚠️ ' + e.message); }
 }
 
 // ── REQUESTS ─────────────────────────────────────────────────

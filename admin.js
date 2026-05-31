@@ -652,7 +652,8 @@ function openPropertyDetail(id) {
       <div class="detail-stat"><div class="detail-stat-val">${visits.length}</div><div class="detail-stat-lbl">визитов</div></div>
       <div class="detail-stat"><div class="detail-stat-val">${reports.length}</div><div class="detail-stat-lbl">отчётов</div></div>
     </div>
-    ${p.notes ? `<div class="report-section"><div class="report-section-title">Примечания</div><div style="font-size:13px;color:var(--text2)">${p.notes}</div></div>` : ''}
+    ${p.notes ? `<div class="report-section"><div class="report-section-title">Примечания</div><div style="font-size:13px;color:var(--text2)">${escapeHtml(p.notes)}</div></div>` : ''}
+    ${p.access ? `<div class="report-section"><div class="report-section-title">🔑 Доступ <button onclick="this.nextElementSibling.style.filter=this.nextElementSibling.style.filter?'':'blur(5px)'" style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;margin-left:6px">скрыть/показать</button></div><div style="font-size:13px;color:var(--text);white-space:pre-wrap;background:var(--surface2);padding:8px 10px;border-radius:8px;margin-top:4px">${escapeHtml(p.access)}</div></div>` : ''}
     <div class="report-section"><div class="report-section-title">Следующий визит</div><div style="font-size:14px">${upcoming.length ? formatDate(upcoming[0].date) : '— не запланирован'}</div></div>
     <div class="report-section"><div class="report-section-title">Контакты клиента</div><div style="font-size:13px;color:var(--text2)">📱 ${client.phone||'—'} · ${client.tg||'—'}</div></div>
     <div class="report-section"><div class="report-section-title">История визитов</div>${visitsHtml}</div>
@@ -729,6 +730,7 @@ function editProperty(id) {
   document.getElementById('propTariff').value = p.tariff || 'basic';
   document.getElementById('propNextVisit').value = p.nextVisit || '';
   document.getElementById('propNotes').value = p.notes || '';
+  if (document.getElementById('propAccess')) document.getElementById('propAccess').value = p.access || '';
   openModal('addPropertyModal');
 }
 
@@ -758,6 +760,7 @@ async function saveProperty() {
     tariff:     document.getElementById('propTariff').value,
     nextVisit:  document.getElementById('propNextVisit').value,
     notes:      document.getElementById('propNotes').value.trim(),
+    access:     document.getElementById('propAccess')?.value.trim() || '',
     icon:       TYPE_ICONS[document.getElementById('propType').value] || '🏠',
   };
 
@@ -1188,6 +1191,7 @@ function renderReports() {
           ${r.photoUrls?.length ? `<span class="report-chip photo">📷 ${r.photoUrls.length}</span>` : ''}
           ${r.videoUrl ? '<span class="report-chip video">🎥 видео</span>' : ''}
           ${r.tgSent ? '<span class="report-chip">✈ отправлен</span>' : ''}
+          ${r.rating ? `<span class="report-chip" style="color:var(--accent2)">${'⭐'.repeat(r.rating)} оценка</span>` : ''}
         </div>
       </div>
     </div>`;
