@@ -281,6 +281,7 @@ function bindAppEvents() {
   document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
   document.getElementById('installPwaBtn').addEventListener('click', installPwa);
   document.getElementById('setColor')?.addEventListener('input', e => applyBrandColor(e.target.value));
+  document.getElementById('aiDescribeBtn')?.addEventListener('click', aiDescribePhotos);
   document.getElementById('resetColorBtn')?.addEventListener('click', () => {
     const def = '#c9a84c';
     const cInput = document.getElementById('setColor');
@@ -323,6 +324,9 @@ function bindAppEvents() {
       document.getElementById('setPhone').value = s.agency.phone || '';
       const plInput = document.getElementById('setPayLink');
       if (plInput) plInput.value = s.agency.payLink || '';
+      const aiInput = document.getElementById('setAiUrl');
+      if (aiInput) aiInput.value = s.agency.aiApiUrl || '';
+      State.settings = s;
       if (s.agency.color) {
         const cInput = document.getElementById('setColor');
         if (cInput) cInput.value = s.agency.color;
@@ -1981,7 +1985,42 @@ function exportInvoices() {
   downloadCsv(`invoices_${ym()}.csv`, rows);
 }
 
-// ── SETTINGS ─────────────────────────────────────────────────
+// ── AI photo description (via bot HTTP proxy) ─────────────────
+async function aiDescribePhotos() {
+  const btn = document.getElementById('aiDescribeBtn');
+  const ta  = document.getElementById('reportComment');
+  const photos = (State.uploadedPhotos || []).filter(p => typeof p === 'string' && p.startsWith('data:image'));
+  if (!photos.length) { showToast('Сначала прикрепите хотя бы одно фото'); return; }
+  const apiUrl = (State.settings?.agency?.aiApiUrl || '').replace(/\/+$/, '');
+  if (!apiUrl) {
+    showToast('Укажите URL AI-сервера в Настройках');
+    return;
+  }
+  const visitId = document.getElementById('reportVisit')?.value;
+  const visit = visitId ? State.visits[visitId] : null;
+  const prop = visit ? State.properties[visit.propId] : null;
+  const context = prop ? `${prop.address}, тариф ${prop.tariff}` : '';
+
+  const oldText = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Анализирую…';
+  try {
+    const r = await fetch(`${apiUrl}/api/analyze-photo`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ photos: photos.slice(0, 4), lang: 'ru', context }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.error || 'Ошибка AI');
+    // Append (don't overwrite) so the user keeps any text already typed
+    ta.value = ta.value ? ta.value.trim() + '\n\n' + data.text : data.text;
+    showToast('✨ AI-описание добавлено');
+  } catch (e) {
+    showToast('⚠️ ' + (e.message || 'Не удалось получить описание'));
+  } finally {
+    btn.disabled = false; btn.textContent = oldText;
+  }
+}
+
 async function saveSettings() {
   const color = document.getElementById('setColor')?.value || '#c9a84c';
   const payload = {
@@ -1990,6 +2029,7 @@ async function saveSettings() {
     phone: document.getElementById('setPhone').value.trim(),
     color,
     payLink: document.getElementById('setPayLink')?.value.trim() || '',
+    aiApiUrl: document.getElementById('setAiUrl')?.value.trim() || '',
   };
   if (State.pendingLogo) payload.logo = State.pendingLogo;
   await DB.update('settings/agency', payload);

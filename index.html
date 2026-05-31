@@ -265,6 +265,8 @@
           </div>
           <label class="settings-label" style="margin-top:14px;display:block">Ссылка на оплату <span style="color:var(--text3);font-weight:400">(Revolut / Stripe / банк)</span></label>
           <input type="text" class="settings-input" id="setPayLink" placeholder="https://revolut.me/... или Stripe Payment Link" style="margin-top:6px"/>
+          <label class="settings-label" style="margin-top:14px;display:block">AI-сервер <span style="color:var(--text3);font-weight:400">(URL вашего бота на Railway, для AI-описания фото)</span></label>
+          <input type="text" class="settings-input" id="setAiUrl" placeholder="https://your-bot.up.railway.app" style="margin-top:6px"/>
           <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
             <div id="logoPreview" style="width:48px;height:48px;border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;flex-shrink:0">🏛️</div>
             <div>
@@ -405,7 +407,10 @@
         <button class="btn-secondary" onclick="document.getElementById('videoInput').click()" style="flex:1">🎥 Выбрать видео</button>
         <div id="videoName" style="font-size:12px;color:var(--text2)"></div>
       </div>
-      <label class="form-label">Комментарий</label>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
+        <label class="form-label" style="margin:0">Комментарий</label>
+        <button type="button" class="btn-secondary" id="aiDescribeBtn" style="font-size:12px;padding:6px 12px">✨ AI-описание по фото</button>
+      </div>
       <textarea class="form-input" id="reportComment" rows="3" placeholder="Состояние объекта…"></textarea>
       <label class="form-label">Счёт ЖКХ (€)</label>
       <input type="number" class="form-input" id="reportBill" placeholder="0" step="0.01"/>
