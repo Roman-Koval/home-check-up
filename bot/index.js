@@ -6,8 +6,10 @@
 
 const TelegramBot = require('node-telegram-bot-api');
 const admin       = require('firebase-admin');
+const http        = require('http');
+const https       = require('https');
 
-const BOT_VERSION = 'v22-2026-05-25';
+const BOT_VERSION = 'v23-2026-05-31';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -1295,3 +1297,112 @@ bot.onText(/\/today|📅 Сегодня/, async (msg) => {
   if (String(msg.chat.id) !== String(ADMIN_ID)) return;
   await morningAgenda(true);
 });
+
+// ══════════════════════════════════════════════════════════════
+//  HTTP API — AI photo analysis (Claude vision via proxy)
+//  Browser → bot HTTP endpoint → Anthropic API
+//  Keeps the ANTHROPIC_API_KEY safely on the server.
+// ══════════════════════════════════════════════════════════════
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
+const PORT = process.env.PORT || 3000;
+
+function callClaude(imagesBase64, prompt) {
+  return new Promise((resolve, reject) => {
+    const content = [];
+    for (const b64 of imagesBase64) {
+      // Accept either "data:image/jpeg;base64,XXX" or raw base64
+      const m = /^data:(image\/[a-z]+);base64,(.+)$/i.exec(b64);
+      const media_type = m ? m[1] : 'image/jpeg';
+      const data = m ? m[2] : b64;
+      content.push({ type: 'image', source: { type: 'base64', media_type, data } });
+    }
+    content.push({ type: 'text', text: prompt });
+
+    const body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{ role: 'user', content }],
+    });
+
+    const req = https.request('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let raw = '';
+      res.on('data', (c) => raw += c);
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(raw);
+          if (data.error) return reject(new Error(data.error.message || 'API error'));
+          const text = (data.content || []).map(c => c.text || '').join('\n').trim();
+          resolve(text || 'Не удалось получить описание.');
+        } catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+const PROMPT_BY_LANG = {
+  ru: `Ты помощник инспектора, осматривающего недвижимость на Кипре. Опиши, что видишь на фото объекта: общее состояние, заметные проблемы или их отсутствие. Если есть мусор, повреждения, неполадки — отметь. Если всё в порядке — так и скажи. Пиши кратко (2-4 предложения), в деловом стиле, по-русски. Только описание, без вступлений.`,
+  en: `You assist a property inspector in Cyprus. Describe what you see in the photo of the property: general condition, visible issues or their absence. Note any debris, damage, malfunctions. If everything is fine, say so. Keep it brief (2-4 sentences), business tone, in English. Only the description, no preamble.`,
+};
+
+function jsonResponse(res, status, obj) {
+  const body = JSON.stringify(obj);
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': Buffer.byteLength(body),
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'POST, OPTIONS',
+    'access-control-allow-headers': 'content-type',
+  });
+  res.end(body);
+}
+
+const server = http.createServer(async (req, res) => {
+  // CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'POST, OPTIONS',
+      'access-control-allow-headers': 'content-type',
+    });
+    return res.end();
+  }
+
+  if (req.url === '/health') return jsonResponse(res, 200, { ok: true, version: BOT_VERSION });
+
+  if (req.url === '/api/analyze-photo' && req.method === 'POST') {
+    if (!ANTHROPIC_KEY) return jsonResponse(res, 503, { error: 'ANTHROPIC_API_KEY not set on the server' });
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 25 * 1024 * 1024) req.destroy(); });
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const photos = Array.isArray(data.photos) ? data.photos.slice(0, 4) : [];
+        if (!photos.length) return jsonResponse(res, 400, { error: 'no photos' });
+        const lang = data.lang === 'en' ? 'en' : 'ru';
+        const prompt = data.context
+          ? `${PROMPT_BY_LANG[lang]}\n\nКонтекст объекта: ${data.context}`
+          : PROMPT_BY_LANG[lang];
+        const text = await callClaude(photos, prompt);
+        jsonResponse(res, 200, { ok: true, text });
+      } catch (e) {
+        console.error('AI endpoint error:', e.message);
+        jsonResponse(res, 500, { error: e.message });
+      }
+    });
+    return;
+  }
+
+  jsonResponse(res, 404, { error: 'not found' });
+});
+server.listen(PORT, () => console.log(`🌐 HTTP API listening on :${PORT}`));
