@@ -9,7 +9,7 @@ const admin       = require('firebase-admin');
 const http        = require('http');
 const https       = require('https');
 
-const BOT_VERSION = 'v24-2026-06-01';
+const BOT_VERSION = 'v25-2026-06-01';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -503,6 +503,8 @@ bot.onText(/🏠 Объекты/, async (msg) => {
   if (String(msg.chat.id) !== String(ADMIN_ID)) return;
   const props = await get('properties').then(v => Object.values(v||{}));
   const clients = await get('clients') || {};
+  const ts = p => (p.createdAt || +String(p.id||'').replace(/\D/g,'') || 0);
+  props.sort((a, b) => ts(b) - ts(a));
   const emoji = { ok:'✅', warning:'⚠️', issue:'❌' };
   const text = props.map(p => {
     const c = Object.values(clients).find(cl => cl.id === p.clientId);
@@ -516,6 +518,9 @@ bot.onText(/👥 Клиенты/, async (msg) => {
   if (String(msg.chat.id) !== String(ADMIN_ID)) return;
   const clients = await get('clients').then(v => Object.values(v||{}));
   if (!clients.length) return bot.sendMessage(msg.chat.id, 'Клиентов пока нет', adminKb);
+  // Newest first (by createdAt, fallback to numeric id timestamp)
+  const ts = c => (c.createdAt || +String(c.id||'').replace(/\D/g,'') || 0);
+  clients.sort((a, b) => ts(b) - ts(a));
   const text = clients.map(c => {
     const tgStatus = c.tgChatId ? '✅' : '⚪';
     return `${tgStatus} *${c.name}*\n   ${c.country||''} · ${c.tg||'—'}\n   📞 ${c.phone||'—'}`;
