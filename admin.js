@@ -1989,8 +1989,10 @@ function exportInvoices() {
 async function aiDescribePhotos() {
   const btn = document.getElementById('aiDescribeBtn');
   const ta  = document.getElementById('reportComment');
-  const photos = (State.uploadedPhotos || []).filter(p => typeof p === 'string' && p.startsWith('data:image'));
-  if (!photos.length) { showToast('Сначала прикрепите хотя бы одно фото'); return; }
+  const photosRaw = (State.uploadedPhotos || [])
+    .map(p => (typeof p === 'string' ? p : p && p.dataUrl))
+    .filter(d => typeof d === 'string' && d.startsWith('data:image'));
+  if (!photosRaw.length) { showToast('Сначала прикрепите хотя бы одно фото'); return; }
   const apiUrl = (State.settings?.agency?.aiApiUrl || '').replace(/\/+$/, '');
   if (!apiUrl) {
     showToast('Укажите URL AI-сервера в Настройках');
@@ -2002,12 +2004,19 @@ async function aiDescribePhotos() {
   const context = prop ? `${prop.address}, тариф ${prop.tariff}` : '';
 
   const oldText = btn.textContent;
-  btn.disabled = true; btn.textContent = '⏳ Анализирую…';
+  btn.disabled = true; btn.textContent = '⏳ Сжимаю фото…';
   try {
+    // Compress to keep request small & cheap (~1000px is plenty for description)
+    const photos = [];
+    for (const p of photosRaw.slice(0, 4)) {
+      try { photos.push(await compressImage(p, 1000, 0.7)); }
+      catch { photos.push(p); }
+    }
+    btn.textContent = '⏳ Анализирую…';
     const r = await fetch(`${apiUrl}/api/analyze-photo`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ photos: photos.slice(0, 4), lang: 'ru', context }),
+      body: JSON.stringify({ photos, lang: 'ru', context }),
     });
     const data = await r.json();
     if (!r.ok || !data.ok) throw new Error(data.error || 'Ошибка AI');
