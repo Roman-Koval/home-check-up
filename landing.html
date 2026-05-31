@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>CyprusGuard — Присматриваем за вашим домом на Кипре</title>
+  <meta name="description" content="Профессиональный присмотр за недвижимостью на Кипре. Регулярные визиты, фото-отчёты, реагирование на проблемы. От €50/мес."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --bg: #070f1e; --bg2: #0d1a30; --surface: #0f1e35;
+      --accent: #c9a84c; --accent2: #e8c875;
+      --text: #e8e4d8; --text2: #9eacc0; --text3: #5c6e84;
+      --border: rgba(255,255,255,0.10);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent2); text-decoration: none; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    /* HEADER */
+    header.site { position: sticky; top: 0; z-index: 50; background: rgba(7,15,30,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    header.site .container { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; padding-bottom: 16px; gap: 16px; flex-wrap: wrap; }
+    .brand { display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', serif; font-size: 22px; color: var(--accent2); font-weight: 700; }
+    .brand small { display: block; font-family: 'DM Sans'; font-size: 10px; color: var(--text3); font-weight: 500; letter-spacing: .15em; text-transform: uppercase; }
+    .nav-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .lang-switcher { background: rgba(255,255,255,0.06); border: 1px solid var(--accent); color: #fff; border-radius: 8px; padding: 7px 28px 7px 12px; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23c9a84c' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 8px center; }
+    .lang-switcher option { background: #fff; color: #1a2332; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: transform .12s ease, filter .2s ease; text-decoration: none; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #8a6020); color: #000; box-shadow: 0 6px 18px rgba(201,168,76,0.32); }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-ghost:hover { border-color: var(--accent); }
+
+    /* HERO */
+    .hero { padding: 80px 0 70px; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; inset: 0; background:
+      radial-gradient(ellipse at 70% 0%, rgba(201,168,76,0.10), transparent 60%),
+      radial-gradient(ellipse at 10% 60%, rgba(79,195,161,0.06), transparent 50%); pointer-events: none; }
+    .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 50px; align-items: center; position: relative; }
+    .hero h1 { font-family: 'Playfair Display', serif; font-size: clamp(36px, 5vw, 56px); line-height: 1.1; margin-bottom: 22px; letter-spacing: -.01em; }
+    .hero h1 .accent { color: var(--accent2); }
+    .hero p.lead { font-size: 18px; color: var(--text2); margin-bottom: 32px; max-width: 540px; }
+    .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .hero-visual { aspect-ratio: 4/3; background: linear-gradient(135deg, var(--bg2), var(--surface)); border: 1px solid var(--border); border-radius: 24px; display: flex; align-items: center; justify-content: center; font-size: 110px; box-shadow: 0 30px 60px rgba(0,0,0,0.4); }
+    .hero-stats { display: flex; gap: 28px; margin-top: 40px; flex-wrap: wrap; }
+    .hero-stat strong { display: block; font-size: 28px; color: var(--accent2); font-family: 'Playfair Display', serif; }
+    .hero-stat span { font-size: 13px; color: var(--text3); }
+    @media (max-width: 800px) {
+      .hero { padding: 50px 0; }
+      .hero-grid { grid-template-columns: 1fr; gap: 30px; }
+      .hero-visual { order: -1; aspect-ratio: 16/10; font-size: 80px; }
+    }
+
+    /* SECTIONS */
+    section.block { padding: 80px 0; border-top: 1px solid var(--border); }
+    .section-eyebrow { color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 12px; }
+    .section-title { font-family: 'Playfair Display', serif; font-size: clamp(28px, 4vw, 40px); margin-bottom: 18px; letter-spacing: -.01em; }
+    .section-sub { color: var(--text2); font-size: 17px; max-width: 600px; margin-bottom: 50px; }
+
+    /* HOW */
+    .how-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+    .how-step { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 28px; transition: transform .3s ease, border-color .3s ease; }
+    .how-step:hover { transform: translateY(-4px); border-color: var(--accent); }
+    .how-num { display: inline-block; font-family: 'Playfair Display', serif; font-size: 38px; color: var(--accent2); margin-bottom: 10px; line-height: 1; }
+    .how-step h3 { font-size: 18px; margin-bottom: 8px; }
+    .how-step p { color: var(--text2); font-size: 14px; }
+
+    /* TARIFFS */
+    .tariffs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
+    .tariff-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 32px 26px; position: relative; transition: transform .3s ease, border-color .3s ease; display: flex; flex-direction: column; }
+    .tariff-card:hover { transform: translateY(-6px); }
+    .tariff-card.featured { border-color: var(--accent); box-shadow: 0 20px 50px rgba(201,168,76,0.18); }
+    .tariff-badge { position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--accent), #8a6020); color: #000; font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 999px; letter-spacing: .04em; text-transform: uppercase; }
+    .tariff-name { font-family: 'Playfair Display', serif; font-size: 24px; margin-bottom: 6px; }
+    .tariff-price { font-size: 42px; color: var(--accent2); font-family: 'Playfair Display', serif; margin: 8px 0 4px; }
+    .tariff-price small { font-size: 14px; color: var(--text3); font-family: 'DM Sans'; }
+    .tariff-desc { color: var(--text3); font-size: 13px; margin-bottom: 22px; }
+    .tariff-features { list-style: none; flex: 1; margin-bottom: 24px; }
+    .tariff-features li { padding: 9px 0 9px 26px; position: relative; font-size: 14px; color: var(--text2); border-bottom: 1px solid var(--border); }
+    .tariff-features li:last-child { border-bottom: none; }
+    .tariff-features li::before { content: '✓'; position: absolute; left: 0; color: var(--accent2); font-weight: 700; }
+
+    /* WHY */
+    .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; }
+    .why-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px; }
+    .why-icon { font-size: 32px; margin-bottom: 14px; }
+    .why-card h4 { font-size: 17px; margin-bottom: 6px; }
+    .why-card p { color: var(--text2); font-size: 14px; }
+
+    /* CTA / FORM */
+    #contact { background: linear-gradient(180deg, transparent, rgba(201,168,76,0.04)); }
+    .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 40px; max-width: 620px; margin: 0 auto; box-shadow: 0 30px 70px rgba(0,0,0,0.4); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .form-field label { display: block; font-size: 12px; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; font-weight: 600; }
+    .form-field input, .form-field select, .form-field textarea { width: 100%; padding: 12px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: inherit; font-size: 15px; transition: border-color .2s; }
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus { outline: none; border-color: var(--accent); }
+    .form-field textarea { resize: vertical; min-height: 90px; }
+    .form-submit { width: 100%; padding: 16px; font-size: 15px; margin-top: 10px; }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } .form-card { padding: 26px 22px; } }
+
+    /* FOOTER */
+    footer { padding: 50px 0 30px; border-top: 1px solid var(--border); text-align: center; color: var(--text3); font-size: 13px; }
+    footer a { margin: 0 8px; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120%); background: var(--surface); border: 1px solid var(--accent); padding: 14px 22px; border-radius: 12px; font-size: 14px; transition: transform .3s; z-index: 100; box-shadow: var(--shadow); }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<header class="site">
+  <div class="container">
+    <div class="brand">🏛️ CyprusGuard <small>Home Check-up</small></div>
+    <div class="nav-actions">
+      <select class="lang-switcher" id="lang">
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+        <option value="fr">Français</option>
+        <option value="tr">Türkçe</option>
+      </select>
+      <a href="#tariffs" class="btn btn-ghost" data-i="navTariffs">Тарифы</a>
+      <a href="#contact" class="btn btn-primary" data-i="navContact">Оставить заявку</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <h1><span data-i="heroTitle1">Присматриваем за вашим домом,</span><br><span class="accent" data-i="heroTitle2">пока вы в отъезде</span></h1>
+      <p class="lead" data-i="heroLead">Профессиональный сервис ухода за недвижимостью на Кипре. Регулярные визиты, фото-отчёты, мгновенное реагирование на проблемы.</p>
+      <div class="hero-cta">
+        <a href="#contact" class="btn btn-primary" data-i="ctaPrimary">Оставить заявку →</a>
+        <a href="#how" class="btn btn-ghost" data-i="ctaSecondary">Как это работает</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><strong>24/7</strong><span data-i="statSupport">Поддержка</span></div>
+        <div class="hero-stat"><strong>5★</strong><span data-i="statClients">Отзывы клиентов</span></div>
+        <div class="hero-stat"><strong>€50<small style="font-size:14px">/мес</small></strong><span data-i="statFrom">Базовый тариф</span></div>
+      </div>
+    </div>
+    <div class="hero-visual">🏖️</div>
+  </div>
+</section>
+
+<section class="block" id="how">
+  <div class="container">
+    <div class="section-eyebrow" data-i="howEyebrow">Как это работает</div>
+    <h2 class="section-title" data-i="howTitle">Простой процесс — спокойствие за результат</h2>
+    <p class="section-sub" data-i="howSub">От подписки до получения отчёта — всё прозрачно и под вашим контролем.</p>
+    <div class="how-grid">
+      <div class="how-step"><div class="how-num">01</div><h3 data-i="step1Title">Подписка</h3><p data-i="step1Desc">Выбираете тариф и подключаете объект — за 5 минут.</p></div>
+      <div class="how-step"><div class="how-num">02</div><h3 data-i="step2Title">Визиты</h3><p data-i="step2Desc">Наш инспектор регулярно посещает ваш дом по графику.</p></div>
+      <div class="how-step"><div class="how-num">03</div><h3 data-i="step3Title">Фото-отчёт</h3><p data-i="step3Desc">После каждого визита — отчёт с фото в вашем личном кабинете и Telegram.</p></div>
+      <div class="how-step"><div class="how-num">04</div><h3 data-i="step4Title">Реагирование</h3><p data-i="step4Desc">При проблеме — связываемся, устраняем, информируем.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="tariffs">
+  <div class="container">
+    <div class="section-eyebrow" data-i="tariffsEyebrow">Тарифы</div>
+    <h2 class="section-title" data-i="tariffsTitle">Выберите подходящий план</h2>
+    <p class="section-sub" data-i="tariffsSub">Стоимость зависит от частоты визитов и набора услуг. Все цены за один объект в месяц.</p>
+    <div class="tariffs-grid">
+      <div class="tariff-card">
+        <div class="tariff-name" data-i="tariffBasic">Basic</div>
+        <div class="tariff-desc" data-i="tariffBasicDesc">Для редко используемой недвижимости</div>
+        <div class="tariff-price">€50<small>/мес</small></div>
+        <ul class="tariff-features" data-features="basic"></ul>
+        <a href="#contact" class="btn btn-ghost" data-i="tariffChoose">Выбрать</a>
+      </div>
+      <div class="tariff-card featured">
+        <div class="tariff-badge" data-i="tariffPopular">Популярный</div>
+        <div class="tariff-name" data-i="tariffStandard">Standard</div>
+        <div class="tariff-desc" data-i="tariffStandardDesc">Оптимальный для большинства владельцев</div>
+        <div class="tariff-price">€75<small>/мес</small></div>
+        <ul class="tariff-features" data-features="standard"></ul>
+        <a href="#contact" class="btn btn-primary" data-i="tariffChoose">Выбрать</a>
+      </div>
+      <div class="tariff-card">
+        <div class="tariff-name" data-i="tariffPremium">Premium</div>
+        <div class="tariff-desc" data-i="tariffPremiumDesc">Для дорогой недвижимости и вилл</div>
+        <div class="tariff-price">€100<small>/мес</small></div>
+        <ul class="tariff-features" data-features="premium"></ul>
+        <a href="#contact" class="btn btn-ghost" data-i="tariffChoose">Выбрать</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="container">
+    <div class="section-eyebrow" data-i="whyEyebrow">Почему мы</div>
+    <h2 class="section-title" data-i="whyTitle">Спокойствие вашей недвижимости</h2>
+    <div class="why-grid">
+      <div class="why-card"><div class="why-icon">📸</div><h4 data-i="why1Title">Фото каждого визита</h4><p data-i="why1Desc">Вы всегда видите реальное состояние дома.</p></div>
+      <div class="why-card"><div class="why-icon">⚡</div><h4 data-i="why2Title">Быстрое реагирование</h4><p data-i="why2Desc">Если что-то пошло не так — действуем немедленно.</p></div>
+      <div class="why-card"><div class="why-icon">💬</div><h4 data-i="why3Title">Telegram-бот</h4><p data-i="why3Desc">Уведомления и связь там, где удобно.</p></div>
+      <div class="why-card"><div class="why-icon">🔐</div><h4 data-i="why4Title">Конфиденциальность</h4><p data-i="why4Desc">Защищённый доступ к данным вашего объекта.</p></div>
+      <div class="why-card"><div class="why-icon">🌍</div><h4 data-i="why5Title">5 языков</h4><p data-i="why5Desc">Личный кабинет на вашем языке.</p></div>
+      <div class="why-card"><div class="why-icon">📋</div><h4 data-i="why6Title">Полная отчётность</h4><p data-i="why6Desc">Все визиты, отчёты и оплаты — в одном месте.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="contact">
+  <div class="container">
+    <div class="section-eyebrow" style="text-align:center" data-i="contactEyebrow">Оставить заявку</div>
+    <h2 class="section-title" style="text-align:center" data-i="contactTitle">Расскажите о вашем объекте</h2>
+    <p class="section-sub" style="text-align:center;margin:0 auto 40px" data-i="contactSub">Свяжемся в течение 24 часов, обсудим детали и предложим оптимальный план.</p>
+    <form class="form-card" id="leadForm">
+      <div class="form-row">
+        <div class="form-field"><label data-i="fName">Имя</label><input type="text" name="name" required/></div>
+        <div class="form-field"><label data-i="fPhone">Телефон</label><input type="tel" name="phone" required placeholder="+357 …"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label data-i="fEmail">Email</label><input type="email" name="email" required/></div>
+        <div class="form-field">
+          <label data-i="fCity">Город объекта</label>
+          <select name="city">
+            <option value="">—</option>
+            <option>Лимассол</option><option>Пафос</option><option>Ларнака</option>
+            <option>Никосия</option><option>Фамагуста</option><option>Кирения</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-field">
+        <label data-i="fTariff">Интересующий тариф</label>
+        <select name="tariff">
+          <option value="">—</option>
+          <option value="basic">Basic (€50)</option>
+          <option value="standard">Standard (€75)</option>
+          <option value="premium">Premium (€100)</option>
+        </select>
+      </div>
+      <div class="form-field" style="margin-top:14px"><label data-i="fMessage">Комментарий</label><textarea name="message" data-i-ph="fMessagePh" placeholder="Тип недвижимости, адрес, особые пожелания…"></textarea></div>
+      <button type="submit" class="btn btn-primary form-submit" data-i="fSubmit">Отправить заявку</button>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="brand" style="justify-content:center;margin-bottom:14px">🏛️ CyprusGuard <small>Home Check-up</small></div>
+    <div data-i="footTagline">Профессиональный присмотр за недвижимостью на Кипре</div>
+    <div style="margin-top:14px;color:var(--text3);font-size:12px">© 2026 CyprusGuard · <a href="client.html" data-i="footPortal">Войти в кабинет</a> · <a href="index.html" data-i="footAdmin">Админ-панель</a></div>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="firebase-config.js"></script>
+<script>
+const I18N = {
+  ru: {
+    navTariffs:'Тарифы', navContact:'Оставить заявку',
+    heroTitle1:'Присматриваем за вашим домом,', heroTitle2:'пока вы в отъезде',
+    heroLead:'Профессиональный сервис ухода за недвижимостью на Кипре. Регулярные визиты, фото-отчёты, мгновенное реагирование на проблемы.',
+    ctaPrimary:'Оставить заявку →', ctaSecondary:'Как это работает',
+    statSupport:'Поддержка', statClients:'Отзывы клиентов', statFrom:'Базовый тариф',
+    howEyebrow:'Как это работает', howTitle:'Простой процесс — спокойствие за результат', howSub:'От подписки до получения отчёта — всё прозрачно и под вашим контролем.',
+    step1Title:'Подписка', step1Desc:'Выбираете тариф и подключаете объект — за 5 минут.',
+    step2Title:'Визиты', step2Desc:'Наш инспектор регулярно посещает ваш дом по графику.',
+    step3Title:'Фото-отчёт', step3Desc:'После каждого визита — отчёт с фото в личном кабинете и Telegram.',
+    step4Title:'Реагирование', step4Desc:'При проблеме — связываемся, устраняем, информируем.',
+    tariffsEyebrow:'Тарифы', tariffsTitle:'Выберите подходящий план', tariffsSub:'Стоимость зависит от частоты визитов и набора услуг. Все цены за один объект в месяц.',
+    tariffBasic:'Basic', tariffBasicDesc:'Для редко используемой недвижимости',
+    tariffStandard:'Standard', tariffStandardDesc:'Оптимальный для большинства владельцев',
+    tariffPremium:'Premium', tariffPremiumDesc:'Для дорогой недвижимости и вилл',
+    tariffPopular:'Популярный', tariffChoose:'Выбрать',
+    whyEyebrow:'Почему мы', whyTitle:'Спокойствие вашей недвижимости',
+    why1Title:'Фото каждого визита', why1Desc:'Вы всегда видите реальное состояние дома.',
+    why2Title:'Быстрое реагирование', why2Desc:'Если что-то пошло не так — действуем немедленно.',
+    why3Title:'Telegram-бот', why3Desc:'Уведомления и связь там, где удобно.',
+    why4Title:'Конфиденциальность', why4Desc:'Защищённый доступ к данным вашего объекта.',
+    why5Title:'5 языков', why5Desc:'Личный кабинет на вашем языке.',
+    why6Title:'Полная отчётность', why6Desc:'Все визиты, отчёты и оплаты — в одном месте.',
+    contactEyebrow:'Оставить заявку', contactTitle:'Расскажите о вашем объекте', contactSub:'Свяжемся в течение 24 часов, обсудим детали и предложим оптимальный план.',
+    fName:'Имя', fPhone:'Телефон', fEmail:'Email', fCity:'Город объекта', fTariff:'Интересующий тариф', fMessage:'Комментарий', fMessagePh:'Тип недвижимости, адрес, особые пожелания…', fSubmit:'Отправить заявку',
+    footTagline:'Профессиональный присмотр за недвижимостью на Кипре', footPortal:'Войти в кабинет', footAdmin:'Админ-панель',
+    sent:'✅ Заявка отправлена! Свяжемся в течение 24 часов.', error:'⚠️ Ошибка отправки. Попробуйте ещё раз.',
+    features: {
+      basic: ['2 визита в месяц','Фото-отчёт','Проветривание','Уведомления в Telegram'],
+      standard: ['4 визита в месяц','Фото + видео','Полив растений','Проверка счетов','Уведомления в Telegram'],
+      premium: ['Еженедельные визиты','Видеообход','Срочное реагирование','Мелкий ремонт','Полный пакет услуг'],
+    },
+  },
+  en: {
+    navTariffs:'Plans', navContact:'Request a call',
+    heroTitle1:'We watch over your home,', heroTitle2:'while you are away',
+    heroLead:'Professional property care in Cyprus. Regular visits, photo reports, instant response to issues.',
+    ctaPrimary:'Request a call →', ctaSecondary:'How it works',
+    statSupport:'Support', statClients:'Client reviews', statFrom:'Starting plan',
+    howEyebrow:'How it works', howTitle:'A simple process — peace of mind delivered', howSub:'From signup to your first report — everything is transparent and in your control.',
+    step1Title:'Signup', step1Desc:'Choose a plan and connect your property in 5 minutes.',
+    step2Title:'Visits', step2Desc:'Our inspector visits your home on a regular schedule.',
+    step3Title:'Photo report', step3Desc:'After each visit — a report with photos in your portal and Telegram.',
+    step4Title:'Response', step4Desc:'If something is wrong — we contact you, fix it, inform you.',
+    tariffsEyebrow:'Plans', tariffsTitle:'Choose your plan', tariffsSub:'Pricing depends on visit frequency and included services. All prices are per property per month.',
+    tariffBasic:'Basic', tariffBasicDesc:'For rarely-used properties',
+    tariffStandard:'Standard', tariffStandardDesc:'The right fit for most owners',
+    tariffPremium:'Premium', tariffPremiumDesc:'For high-value properties and villas',
+    tariffPopular:'Popular', tariffChoose:'Choose',
+    whyEyebrow:'Why us', whyTitle:'Your property\u2019s peace of mind',
+    why1Title:'Photo of every visit', why1Desc:'You always see the real state of your home.',
+    why2Title:'Fast response', why2Desc:'If something is wrong — we act immediately.',
+    why3Title:'Telegram bot', why3Desc:'Notifications and contact, wherever you are.',
+    why4Title:'Confidentiality', why4Desc:'Secure access to your property data.',
+    why5Title:'5 languages', why5Desc:'Personal portal in your language.',
+    why6Title:'Full reporting', why6Desc:'All visits, reports and payments in one place.',
+    contactEyebrow:'Get in touch', contactTitle:'Tell us about your property', contactSub:'We\u2019ll contact you within 24 hours to discuss details and suggest the best plan.',
+    fName:'Name', fPhone:'Phone', fEmail:'Email', fCity:'Property city', fTariff:'Plan of interest', fMessage:'Comment', fMessagePh:'Property type, address, special requests…', fSubmit:'Send request',
+    footTagline:'Professional property care in Cyprus', footPortal:'Open portal', footAdmin:'Admin panel',
+    sent:'✅ Request sent! We will contact you within 24 hours.', error:'⚠️ Send failed. Please try again.',
+    features: {
+      basic: ['2 visits per month','Photo report','Ventilation','Telegram notifications'],
+      standard: ['4 visits per month','Photo + video','Plant watering','Bill check','Telegram notifications'],
+      premium: ['Weekly visits','Video walkthrough','Urgent response','Minor repairs','Full service package'],
+    },
+  },
+  de: {
+    navTariffs:'Tarife', navContact:'Anfrage senden',
+    heroTitle1:'Wir kümmern uns um Ihr Zuhause,', heroTitle2:'während Sie verreist sind',
+    heroLead:'Professionelle Immobilienbetreuung auf Zypern. Regelmäßige Besuche, Fotoberichte, sofortige Reaktion auf Probleme.',
+    ctaPrimary:'Anfrage senden →', ctaSecondary:'So funktioniert es',
+    statSupport:'Support', statClients:'Bewertungen', statFrom:'Basistarif',
+    howEyebrow:'So funktioniert es', howTitle:'Einfacher Ablauf — garantierte Ruhe', howSub:'Von der Anmeldung bis zum Bericht — alles transparent und unter Ihrer Kontrolle.',
+    step1Title:'Anmeldung', step1Desc:'Tarif wählen und Objekt verbinden — in 5 Minuten.',
+    step2Title:'Besuche', step2Desc:'Unser Inspektor besucht Ihr Haus regelmäßig nach Plan.',
+    step3Title:'Fotobericht', step3Desc:'Nach jedem Besuch — Bericht mit Fotos im Portal und Telegram.',
+    step4Title:'Reaktion', step4Desc:'Bei Problemen — wir melden uns, beheben es, informieren.',
+    tariffsEyebrow:'Tarife', tariffsTitle:'Wählen Sie Ihren Tarif', tariffsSub:'Preis abhängig von Besuchshäufigkeit und Leistungen. Alle Preise pro Objekt pro Monat.',
+    tariffBasic:'Basic', tariffBasicDesc:'Für selten genutzte Immobilien',
+    tariffStandard:'Standard', tariffStandardDesc:'Optimal für die meisten Eigentümer',
+    tariffPremium:'Premium', tariffPremiumDesc:'Für hochwertige Immobilien und Villen',
+    tariffPopular:'Beliebt', tariffChoose:'Wählen',
+    whyEyebrow:'Warum wir', whyTitle:'Ruhe für Ihre Immobilie',
+    why1Title:'Foto jedes Besuchs', why1Desc:'Sie sehen immer den echten Zustand Ihres Hauses.',
+    why2Title:'Schnelle Reaktion', why2Desc:'Wenn etwas nicht stimmt — wir handeln sofort.',
+    why3Title:'Telegram-Bot', why3Desc:'Benachrichtigungen und Kontakt, wo es passt.',
+    why4Title:'Vertraulichkeit', why4Desc:'Sicherer Zugang zu Ihren Objektdaten.',
+    why5Title:'5 Sprachen', why5Desc:'Kundenportal in Ihrer Sprache.',
+    why6Title:'Vollständige Berichte', why6Desc:'Alle Besuche, Berichte und Zahlungen an einem Ort.',
+    contactEyebrow:'Kontakt', contactTitle:'Erzählen Sie uns von Ihrer Immobilie', contactSub:'Wir melden uns innerhalb von 24 Stunden mit Details und dem passenden Plan.',
+    fName:'Name', fPhone:'Telefon', fEmail:'E-Mail', fCity:'Stadt der Immobilie', fTariff:'Gewünschter Tarif', fMessage:'Anmerkung', fMessagePh:'Immobilientyp, Adresse, besondere Wünsche…', fSubmit:'Anfrage senden',
+    footTagline:'Professionelle Immobilienbetreuung auf Zypern', footPortal:'Portal öffnen', footAdmin:'Admin-Panel',
+    sent:'✅ Anfrage gesendet! Wir melden uns binnen 24 Stunden.', error:'⚠️ Senden fehlgeschlagen. Bitte erneut versuchen.',
+    features: {
+      basic: ['2 Besuche pro Monat','Fotobericht','Lüftung','Telegram-Benachrichtigungen'],
+      standard: ['4 Besuche pro Monat','Foto + Video','Pflanzenbewässerung','Rechnungsprüfung','Telegram-Benachrichtigungen'],
+      premium: ['Wöchentliche Besuche','Video-Rundgang','Notfallreaktion','Kleine Reparaturen','Komplettpaket'],
+    },
+  },
+  fr: {
+    navTariffs:'Tarifs', navContact:'Demander un appel',
+    heroTitle1:'Nous veillons sur votre maison,', heroTitle2:'pendant votre absence',
+    heroLead:'Gestion professionnelle de biens à Chypre. Visites régulières, rapports photo, réaction immédiate aux incidents.',
+    ctaPrimary:'Demander un appel →', ctaSecondary:'Comment ça marche',
+    statSupport:'Support', statClients:'Avis clients', statFrom:'Forfait de base',
+    howEyebrow:'Comment ça marche', howTitle:'Un processus simple — la tranquillité d\u2019esprit', howSub:'De l\u2019inscription au premier rapport — tout est transparent et sous votre contrôle.',
+    step1Title:'Inscription', step1Desc:'Choisissez un forfait et connectez votre bien — en 5 minutes.',
+    step2Title:'Visites', step2Desc:'Notre inspecteur visite votre maison régulièrement.',
+    step3Title:'Rapport photo', step3Desc:'Après chaque visite — rapport avec photos dans le portail et Telegram.',
+    step4Title:'Réaction', step4Desc:'En cas de problème — nous vous contactons, résolvons, informons.',
+    tariffsEyebrow:'Tarifs', tariffsTitle:'Choisissez votre forfait', tariffsSub:'Prix selon la fréquence et les services inclus. Tarifs par bien et par mois.',
+    tariffBasic:'Basic', tariffBasicDesc:'Pour les biens peu utilisés',
+    tariffStandard:'Standard', tariffStandardDesc:'L\u2019idéal pour la plupart des propriétaires',
+    tariffPremium:'Premium', tariffPremiumDesc:'Pour les biens de valeur et les villas',
+    tariffPopular:'Populaire', tariffChoose:'Choisir',
+    whyEyebrow:'Pourquoi nous', whyTitle:'La sérénité de votre bien',
+    why1Title:'Photo à chaque visite', why1Desc:'Vous voyez toujours l\u2019état réel de votre maison.',
+    why2Title:'Réaction rapide', why2Desc:'En cas de problème, nous agissons immédiatement.',
+    why3Title:'Bot Telegram', why3Desc:'Notifications et contact, où que vous soyez.',
+    why4Title:'Confidentialité', why4Desc:'Accès sécurisé aux données de votre bien.',
+    why5Title:'5 langues', why5Desc:'Portail client dans votre langue.',
+    why6Title:'Rapports complets', why6Desc:'Visites, rapports et paiements en un seul endroit.',
+    contactEyebrow:'Contact', contactTitle:'Parlez-nous de votre bien', contactSub:'Nous vous contactons sous 24 heures pour discuter et proposer le bon forfait.',
+    fName:'Nom', fPhone:'Téléphone', fEmail:'E-mail', fCity:'Ville du bien', fTariff:'Forfait souhaité', fMessage:'Commentaire', fMessagePh:'Type de bien, adresse, demandes spéciales…', fSubmit:'Envoyer la demande',
+    footTagline:'Gestion professionnelle de biens à Chypre', footPortal:'Ouvrir le portail', footAdmin:'Panneau admin',
+    sent:'✅ Demande envoyée ! Nous vous contactons sous 24 heures.', error:'⚠️ Échec d\u2019envoi. Réessayez.',
+    features: {
+      basic: ['2 visites par mois','Rapport photo','Aération','Notifications Telegram'],
+      standard: ['4 visites par mois','Photo + vidéo','Arrosage des plantes','Vérification des factures','Notifications Telegram'],
+      premium: ['Visites hebdomadaires','Visite vidéo','Intervention urgente','Petites réparations','Forfait complet'],
+    },
+  },
+  tr: {
+    navTariffs:'Tarifeler', navContact:'Talep gönder',
+    heroTitle1:'Evinize göz kulak oluyoruz,', heroTitle2:'siz uzaktayken',
+    heroLead:'Kıbrıs\u2019ta profesyonel emlak bakım hizmeti. Düzenli ziyaretler, fotoğraflı raporlar, sorunlara anında müdahale.',
+    ctaPrimary:'Talep gönder →', ctaSecondary:'Nasıl çalışır',
+    statSupport:'Destek', statClients:'Müşteri yorumları', statFrom:'Başlangıç tarifesi',
+    howEyebrow:'Nasıl çalışır', howTitle:'Basit süreç — garantili huzur', howSub:'Üyelikten ilk rapora kadar her şey şeffaf ve sizin kontrolünüzde.',
+    step1Title:'Üyelik', step1Desc:'Tarife seçin ve mülkünüzü bağlayın — 5 dakikada.',
+    step2Title:'Ziyaretler', step2Desc:'Görevlimiz evinizi belirlenen sıklıkla ziyaret eder.',
+    step3Title:'Fotoğraflı rapor', step3Desc:'Her ziyaretten sonra — portalda ve Telegram\u2019da fotoğraflı rapor.',
+    step4Title:'Müdahale', step4Desc:'Bir sorun olursa — sizi arıyoruz, çözüyoruz, bilgilendiriyoruz.',
+    tariffsEyebrow:'Tarifeler', tariffsTitle:'Size uygun tarifeyi seçin', tariffsSub:'Fiyat ziyaret sıklığına ve hizmet kapsamına göre değişir. Tüm fiyatlar mülk başına aylıktır.',
+    tariffBasic:'Basic', tariffBasicDesc:'Nadiren kullanılan mülkler için',
+    tariffStandard:'Standard', tariffStandardDesc:'Çoğu mülk sahibi için ideal',
+    tariffPremium:'Premium', tariffPremiumDesc:'Değerli mülkler ve villalar için',
+    tariffPopular:'Popüler', tariffChoose:'Seç',
+    whyEyebrow:'Neden biz', whyTitle:'Mülkünüzün huzuru',
+    why1Title:'Her ziyarette fotoğraf', why1Desc:'Evinizin gerçek durumunu her zaman görürsünüz.',
+    why2Title:'Hızlı müdahale', why2Desc:'Bir şeyler ters giderse hemen harekete geçeriz.',
+    why3Title:'Telegram botu', why3Desc:'Size uygun yerde bildirimler ve iletişim.',
+    why4Title:'Gizlilik', why4Desc:'Mülk verilerinize güvenli erişim.',
+    why5Title:'5 dil', why5Desc:'Kendi dilinizde kişisel panel.',
+    why6Title:'Tam raporlama', why6Desc:'Tüm ziyaretler, raporlar ve ödemeler tek yerde.',
+    contactEyebrow:'İletişim', contactTitle:'Mülkünüzden bahsedin', contactSub:'24 saat içinde sizi arar, detayları konuşur ve en uygun planı öneririz.',
+    fName:'Ad', fPhone:'Telefon', fEmail:'E-posta', fCity:'Mülk şehri', fTariff:'İlgilendiğiniz tarife', fMessage:'Açıklama', fMessagePh:'Mülk türü, adres, özel istekler…', fSubmit:'Talebi gönder',
+    footTagline:'Kıbrıs\u2019ta profesyonel emlak bakım hizmeti', footPortal:'Portala git', footAdmin:'Yönetim paneli',
+    sent:'✅ Talep gönderildi! 24 saat içinde sizi arayacağız.', error:'⚠️ Gönderim başarısız. Lütfen tekrar deneyin.',
+    features: {
+      basic: ['Ayda 2 ziyaret','Fotoğraflı rapor','Havalandırma','Telegram bildirimleri'],
+      standard: ['Ayda 4 ziyaret','Fotoğraf + video','Bitki sulama','Fatura kontrolü','Telegram bildirimleri'],
+      premium: ['Haftalık ziyaretler','Video tur','Acil müdahale','Küçük tamiratlar','Tam hizmet paketi'],
+    },
+  },
+};
+let LANG = (localStorage.getItem('cg-landing-lang') || (navigator.language||'').slice(0,2) || 'ru').toLowerCase();
+if (!I18N[LANG]) LANG = 'ru';
+document.getElementById('lang').value = LANG;
+
+function applyLang() {
+  const d = I18N[LANG];
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-i]').forEach(el => {
+    const k = el.dataset.i; if (d[k]) el.textContent = d[k];
+  });
+  document.querySelectorAll('[data-i-ph]').forEach(el => {
+    const k = el.dataset.iPh; if (d[k]) el.placeholder = d[k];
+  });
+  document.querySelectorAll('[data-features]').forEach(ul => {
+    const t = ul.dataset.features;
+    ul.innerHTML = (d.features[t]||[]).map(f => `<li>${f}</li>`).join('');
+  });
+  // City options stay constant; tariff option labels can be local
+  document.title = (LANG==='ru'?'CyprusGuard — Присматриваем за вашим домом на Кипре':
+                    LANG==='en'?'CyprusGuard — We watch over your home in Cyprus':
+                    LANG==='de'?'CyprusGuard — Immobilienbetreuung auf Zypern':
+                    LANG==='fr'?'CyprusGuard — Veille sur votre bien à Chypre':
+                    'CyprusGuard — Kıbrıs\u2019ta mülk bakım hizmeti');
+}
+document.getElementById('lang').addEventListener('change', e => {
+  LANG = e.target.value; try{localStorage.setItem('cg-landing-lang', LANG);}catch{}
+  applyLang();
+});
+applyLang();
+
+function showToast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg;
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3800);
+}
+
+document.getElementById('leadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const id = 'lead_' + Date.now();
+  const lead = {
+    id, ...data, lang: LANG, status: 'new',
+    createdAt: Date.now(),
+    source: 'landing',
+  };
+  try {
+    if (window.Auth && window.Auth.ensureAnonAuth) await window.Auth.ensureAnonAuth();
+    await DB.set(`leads/${id}`, lead);
+    showToast(I18N[LANG].sent);
+    e.target.reset();
+  } catch (err) {
+    console.error(err);
+    showToast(I18N[LANG].error);
+  }
+});
+</script>
+</body>
+</html>

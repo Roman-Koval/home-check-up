@@ -8,6 +8,7 @@
     "properties":  { ".indexOn": ["clientId", "tariff", "status"] },
     "invoices":    { ".indexOn": ["createdAt", "clientId", "propId", "status", "period"] },
     "clients":     { ".indexOn": ["tgChatId", "accessToken", "lang"] },
+    "leads":       { ".indexOn": ["createdAt", "status", "lang", "city"] },
     "notifications": { ".indexOn": ["createdAt"] }
   }
 }

@@ -13,6 +13,7 @@ const State = {
   visits: {},
   reports: {},
   requests: {},
+  leads: {},
   invoices: {},
   settings: {},
   notifications: [],
@@ -151,6 +152,7 @@ function subscribeAll() {
   sub('visits',     'visits',     () => { renderVisitsDetailed(); updateKPIs(); renderCalendar(); populateVisitSelects(); renderDashVisits(); });
   sub('reports',    'reports',    () => { renderReports(); populateReportVisitSel(); });
   sub('requests',   'requests',   () => { renderRequests(); updateKPIs(); renderDashRequests(); });
+  sub('leads',      'leads',      () => { renderLeads(); updateLeadBadge(); });
   sub('invoices',   'invoices',   () => { if (State.page === 'billing') renderBilling(); updateKPIs(); });
 
   // Settings (realtime, drives billing + telegram state)
@@ -1377,6 +1379,76 @@ function renderRequests() {
       </div>
     </div>`;
   }).join('') || '<div style="color:var(--text3);font-size:13px;padding:16px;text-align:center">Нет заявок</div>';
+}
+
+// ── LEADS (incoming from marketing landing) ─────────────────
+function renderLeads() {
+  const list = Object.values(State.leads || {})
+    .sort((a, b) => (b.createdAt||0) - (a.createdAt||0));
+  const new_ = list.filter(l => l.status === 'new');
+  setText('leadsCount', `${new_.length} новых · всего ${list.length}`);
+
+  const tariffLabel = { basic:'Basic €50', standard:'Standard €75', premium:'Premium €100' };
+  const statusChip = {
+    new: '<span class="report-chip" style="background:rgba(79,195,161,0.15);color:var(--teal,#4fc3a1)">🆕 новый</span>',
+    accepted: '<span class="report-chip">✅ принят</span>',
+    dismissed: '<span class="report-chip" style="color:var(--text3)">↩ отклонён</span>',
+  };
+  const langFlag = { ru:'🇷🇺', en:'🇬🇧', de:'🇩🇪', fr:'🇫🇷', tr:'🇹🇷' };
+
+  document.getElementById('leadsList').innerHTML = list.map(l => `
+    <div class="report-item" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:600;font-size:15px">${escapeHtml(l.name||'—')} ${langFlag[l.lang]||''}</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:4px">
+            📞 ${escapeHtml(l.phone||'—')} · 📧 ${escapeHtml(l.email||'—')}<br/>
+            📍 ${escapeHtml(l.city||'—')} · 💼 ${tariffLabel[l.tariff] || '—'}
+          </div>
+          ${l.message ? `<div style="font-size:13px;color:var(--text);margin-top:8px;padding:8px 10px;background:var(--surface2);border-radius:8px;white-space:pre-wrap">${escapeHtml(l.message)}</div>` : ''}
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">${new Date(l.createdAt||0).toLocaleString('ru-RU')}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          ${statusChip[l.status] || ''}
+          ${l.status === 'new' ? `
+            <button class="btn-primary" onclick="acceptLead('${l.id}')" style="font-size:12px;padding:6px 12px">→ В клиенты</button>
+            <button class="btn-secondary" onclick="dismissLead('${l.id}')" style="font-size:12px;padding:6px 12px">Отклонить</button>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('') || '<div style="color:var(--text3);font-size:13px;padding:24px;text-align:center">Заявок с сайта пока нет.<br><br>Маркетинговая страница (landing.html) → форма «Оставить заявку» → лиды появятся здесь.</div>';
+}
+
+function updateLeadBadge() {
+  const new_ = Object.values(State.leads || {}).filter(l => l.status === 'new').length;
+  const badge = document.getElementById('leadBadge');
+  if (!badge) return;
+  badge.textContent = new_;
+  badge.style.display = new_ ? 'inline-flex' : 'none';
+}
+
+async function acceptLead(id) {
+  const l = State.leads[id];
+  if (!l) return;
+  const cid = 'c' + Date.now();
+  const token = 'tok-' + Math.random().toString(36).slice(2,10);
+  const colors = ['#4fc3a1','#f0a500','#9b8db0','#5e81ff','#e05c5c','#c9a84c'];
+  await DB.set(`clients/${cid}`, {
+    id: cid, name: l.name||'', country: l.city||'', phone: l.phone||'', email: l.email||'',
+    tg: '', lang: l.lang || 'ru', accessToken: token, tgChatId: '', monthly: 0,
+    color: colors[Math.floor(Math.random()*colors.length)],
+    notes: l.message || '', source: 'landing',
+  });
+  await DB.update(`leads/${id}`, { status: 'accepted', acceptedAt: Date.now(), clientId: cid });
+  showToast('✅ Клиент создан из заявки');
+  navigateTo('clients');
+}
+
+async function dismissLead(id) {
+  if (!confirm('Отклонить заявку?')) return;
+  await DB.update(`leads/${id}`, { status: 'dismissed', dismissedAt: Date.now() });
+  showToast('↩ Заявка отклонена');
 }
 
 function renderDashRequests() {
