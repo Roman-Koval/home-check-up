@@ -9,7 +9,7 @@ const admin       = require('firebase-admin');
 const http        = require('http');
 const https       = require('https');
 
-const BOT_VERSION = 'v23-2026-05-31';
+const BOT_VERSION = 'v24-2026-06-01';
 console.log('====================================================');
 console.log(`🚀 CyprusGuard Bot — BUILD ${BOT_VERSION}`);
 console.log('====================================================');
@@ -977,7 +977,7 @@ db.ref('clients').on('child_added', async (snap) => {
   console.log(`👤 Client-created notified: ${c.name}`);
 });
 
-// New LEAD from the marketing landing page → alert admin
+// New LEAD from the marketing landing page → alert admin with action buttons
 db.ref('leads').on('child_added', async (snap) => {
   if (!warmedUp || !ADMIN_ID) return;
   const l = snap.val();
@@ -993,7 +993,13 @@ db.ref('leads').on('child_added', async (snap) => {
     `💼 ${tariff[l.tariff] || l.tariff || 'не выбран'}\n` +
     `🌐 ${(l.lang||'ru').toUpperCase()}\n\n` +
     (l.message ? `_${l.message}_` : ''),
-    { parse_mode: 'Markdown' }).catch(()=>{});
+    {
+      parse_mode: 'Markdown',
+      reply_markup: { inline_keyboard: [[
+        { text: '✅ В клиенты', callback_data: `lead:accept:${snap.key}` },
+        { text: '↩ Отклонить', callback_data: `lead:dismiss:${snap.key}` },
+      ]] }
+    }).catch(()=>{});
   console.log(`🎯 Lead notified: ${l.name} (${l.email})`);
 });
 
@@ -1099,6 +1105,42 @@ bot.on('callback_query', async (q) => {
       const targetChat = action;
       wizards[chatId] = { kind: 'client', step: 0, data: { _linkChat: targetChat } };
       bot.sendMessage(chatId, '👤 *Новый клиент* (будет привязан к этому Telegram)\n\nВведите имя клиента:', { parse_mode: 'Markdown', ...cancelKb });
+      return;
+    }
+
+    // ---- LEAD actions: accept (→ create client) / dismiss ----
+    if (domain === 'lead' && fromAdmin) {
+      const leadId = id;
+      const lead = await get(`leads/${leadId}`);
+      if (!lead) {
+        await bot.answerCallbackQuery(q.id, { text: 'Лид не найден' });
+        return;
+      }
+      if (action === 'accept') {
+        const cid = 'c' + Date.now();
+        const token = 'tok-' + Math.random().toString(36).slice(2,10);
+        const colors = ['#4fc3a1','#f0a500','#9b8db0','#5e81ff','#e05c5c','#c9a84c'];
+        await set(`clients/${cid}`, {
+          id: cid, name: lead.name||'', country: lead.city||'', phone: lead.phone||'', email: lead.email||'',
+          tg: '', lang: lead.lang || 'ru', accessToken: token, tgChatId: '', monthly: 0,
+          color: colors[Math.floor(Math.random()*colors.length)],
+          notes: lead.message || '', source: 'landing', createdAt: Date.now(),
+          _fromBot: true,
+        });
+        await update(`leads/${leadId}`, { status: 'accepted', acceptedAt: Date.now(), clientId: cid });
+        await bot.answerCallbackQuery(q.id, { text: '✅ Клиент создан' });
+        await bot.editMessageReplyMarkup(
+          { inline_keyboard: [[{ text: `✅ В клиентах: ${lead.name||''}`, callback_data: 'noop' }]] },
+          { chat_id: q.message.chat.id, message_id: q.message.message_id }
+        ).catch(()=>{});
+      } else if (action === 'dismiss') {
+        await update(`leads/${leadId}`, { status: 'dismissed', dismissedAt: Date.now() });
+        await bot.answerCallbackQuery(q.id, { text: '↩ Отклонён' });
+        await bot.editMessageReplyMarkup(
+          { inline_keyboard: [[{ text: '↩ Заявка отклонена', callback_data: 'noop' }]] },
+          { chat_id: q.message.chat.id, message_id: q.message.message_id }
+        ).catch(()=>{});
+      }
       return;
     }
 
