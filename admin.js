@@ -1003,6 +1003,8 @@ function showClientLink(clientId) {
 
 function populateClientSelects() {
   const list = Object.values(State.clients);
+  const ts = c => (c.createdAt || +String(c.id||'').replace(/\D/g,'') || 0);
+  list.sort((a, b) => ts(b) - ts(a));
   const opts = list.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   document.getElementById('propClientSel').innerHTML = '<option value="">— Выберите клиента —</option>' + opts;
   const tgSel = document.getElementById('tgTestClient');

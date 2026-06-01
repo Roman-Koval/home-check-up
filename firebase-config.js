@@ -29,22 +29,32 @@ const storage = (typeof firebase.storage === 'function') ? firebase.storage() : 
 
 // ── OFFLINE SUPPORT ─────────────────────────────────────────
 // Firebase RTDB queues writes made while offline and flushes them automatically
-// when the connection returns. We surface the connection state to the UI so the
-// user knows their data is pending, and keep key nodes synced for offline reads.
+// when the connection returns. We surface the connection state to the UI.
 window.CG_ONLINE = true;
-try {
-  ['properties','visits','reports','requests','clients','invoices','settings'].forEach(n => {
-    db.ref(n).keepSynced(true);
-  });
-} catch (e) { /* keepSynced not critical */ }
+let _connReady = false;
+
+// Don't show offline banner for the first 5 seconds (auth hasn't happened yet)
+setTimeout(() => { _connReady = true; }, 5000);
 
 db.ref('.info/connected').on('value', (snap) => {
   const online = snap.val() === true;
   window.CG_ONLINE = online;
-  const banner = document.getElementById('offlineBanner');
-  if (banner) banner.style.display = online ? 'none' : 'flex';
-  // Also reflect via a body class for styling
-  document.body && document.body.classList.toggle('is-offline', !online);
+  if (_connReady) {
+    const banner = document.getElementById('offlineBanner');
+    if (banner) banner.style.display = online ? 'none' : 'flex';
+    document.body && document.body.classList.toggle('is-offline', !online);
+  }
+  if (online) _connReady = true; // got first connected = auth is likely done
+});
+
+// keepSynced requires auth — enable only after first auth state
+auth.onAuthStateChanged((user) => {
+  if (!user) return;
+  try {
+    ['properties','visits','reports','requests','clients','invoices','settings','leads'].forEach(n => {
+      db.ref(n).keepSynced(true);
+    });
+  } catch (e) { /* not critical */ }
 });
 
 // ── 3. COLLECTIONS HELPER ───────────────────────────────────

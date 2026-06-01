@@ -478,6 +478,9 @@ function showToast(msg) {
 
 document.getElementById('leadForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  const origText = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Отправляю…';
   const data = Object.fromEntries(new FormData(e.target));
   const id = 'lead_' + Date.now();
   const lead = {
@@ -486,13 +489,19 @@ document.getElementById('leadForm').addEventListener('submit', async (e) => {
     source: 'landing',
   };
   try {
-    if (window.Auth && window.Auth.ensureAnonAuth) await window.Auth.ensureAnonAuth();
+    // Anonymous auth is REQUIRED — rules need auth != null
+    if (window.Auth && window.Auth.ensureAnonAuth) {
+      const user = await window.Auth.ensureAnonAuth();
+      if (!user) throw new Error('Auth failed');
+    }
     await DB.set(`leads/${id}`, lead);
     showToast(I18N[LANG].sent);
     e.target.reset();
   } catch (err) {
-    console.error(err);
-    showToast(I18N[LANG].error);
+    console.error('Lead submit error:', err);
+    showToast(I18N[LANG].error + ' (' + (err.message || err.code || '') + ')');
+  } finally {
+    btn.disabled = false; btn.textContent = origText;
   }
 });
 </script>
