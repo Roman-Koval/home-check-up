@@ -391,13 +391,15 @@ function updateHero() {
 }
 
 // Live weather for Limassol via Open-Meteo (free, no API key)
-async function fetchWeather() {
-  var tempEl = document.getElementById('heroWxTemp');
-  var iconEl = document.getElementById('heroWxIcon');
-  if (!tempEl || !iconEl) return;
-  var wxIcon = function(code) {
-    if (code <= 1) return '☀️';
-    if (code <= 3) return '⛅';
+async function loadWeather() {
+  const tempEl = document.getElementById('heroWxTemp');
+  const iconEl = document.getElementById('heroWxIcon');
+  if (!tempEl) return;
+  // WMO weather code → emoji
+  const wxIcon = code => {
+    if (code === 0) return '☀️';
+    if (code <= 2) return '🌤️';
+    if (code === 3) return '☁️';
     if (code <= 48) return '🌫️';
     if (code <= 67) return '🌧️';
     if (code <= 77) return '❄️';
@@ -405,27 +407,15 @@ async function fetchWeather() {
     if (code <= 99) return '⛈️';
     return '☀️';
   };
-  function doLoad(lat, lon, city) {
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,weather_code')
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d.current) {
-          tempEl.textContent = Math.round(d.current.temperature_2m) + '°C';
-          iconEl.textContent = wxIcon(d.current.weather_code);
-          var c = document.getElementById('heroWxCity');
-          if (c) c.textContent = city;
-        }
-      }).catch(function() {});
-  }
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      function(pos) { doLoad(pos.coords.latitude, pos.coords.longitude, '📍 Моё место'); },
-      function() { doLoad(34.707, 33.022, 'Лимассол'); },
-      { timeout: 5000 }
-    );
-  } else {
-    doLoad(34.707, 33.022, 'Лимассол');
-  }
+  try {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=34.707&longitude=33.022&current=temperature_2m,weather_code');
+    const data = await r.json();
+    const cur = data.current;
+    if (cur) {
+      tempEl.textContent = `${Math.round(cur.temperature_2m)}°C`;
+      iconEl.textContent = wxIcon(cur.weather_code);
+    }
+  } catch(e) { /* keep placeholder */ }
 }
 
 // ── KPIs ─────────────────────────────────────────────────────
