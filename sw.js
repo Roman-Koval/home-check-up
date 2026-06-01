@@ -6,7 +6,7 @@
 //    - Images (Firebase Storage)    → Cache with Network fallback
 // ================================================================
 
-const CACHE_NAME = 'cyprusguard-v24';
+const CACHE_NAME = 'cyprusguard-v25';
 const OFFLINE_URL = '/offline.html';
 
 const SHELL_ASSETS = [

@@ -985,3 +985,6 @@ textarea.form-input { resize: vertical; min-height: 70px; }
   display: flex; align-items: center; justify-content: center; gap: 8px;
   box-shadow: 0 -2px 12px rgba(0,0,0,0.3);
 }
+
+/* Active KPI filter on billing page */
+.kpi-card.kpi-active { border-color: var(--accent) !important; box-shadow: 0 0 0 2px rgba(201,168,76,0.25); }

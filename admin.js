@@ -24,6 +24,7 @@ const State = {
   reqFilter: 'new',
   reportSearch: '',
   clientSearch: '',
+  billingFilter: 'all',
   currentReqId: null,
   currentReportId: null,
   currentClientId: null,
@@ -862,6 +863,21 @@ function renderClients() {
   }).join('') || '<div class="empty-state"><div style="font-size:48px">👤</div><div>Нет клиентов</div><button class="btn-primary" onclick="openModal(\'addClientModal\')">+ Добавить</button></div>';
 }
 
+function addPropertyForClient(clientId) {
+  closeModal('clientDetailModal');
+  State.editingPropId = null;
+  document.getElementById('propModalTitle').textContent = 'Новый объект';
+  clearForm(['propAddress','propNotes']);
+  // Preselect the client once the dropdown is ready
+  setTimeout(() => {
+    const sel = document.getElementById('propClientSel');
+    if (sel) sel.value = clientId;
+    const acc = document.getElementById('propAccess'); if (acc) acc.value = '';
+    const city = document.getElementById('propCity'); if (city) city.value = '';
+  }, 50);
+  openModal('addPropertyModal');
+}
+
 function openClientDetail(id) {
   const c = State.clients[id];
   if (!c) return;
@@ -874,7 +890,11 @@ function openClientDetail(id) {
   const monthly = clientMonthly(id);
   const LANG_LABELS = { ru:'Русский', en:'English', de:'Deutsch', fr:'Français', tr:'Türkçe' };
 
-  const propsHtml = props.map(p => `<div class="detail-row" style="cursor:pointer" onclick="closeModal('clientDetailModal');openPropertyDetail('${p.id}')"><span>${TYPE_ICONS[p.type||'apt']} ${p.address}</span><span>${TARIFF_LABELS[p.tariff]||p.tariff} · €${TARIFF_PRICE[p.tariff]||0}</span></div>`).join('') || '<div style="color:var(--text3);font-size:13px">Нет объектов</div>';
+  const propsHtml = props.map(p => `<div class="detail-row" style="cursor:pointer" onclick="closeModal('clientDetailModal');openPropertyDetail('${p.id}')"><span>${TYPE_ICONS[p.type||'apt']} ${p.address}</span><span>${TARIFF_LABELS[p.tariff]||p.tariff} · €${TARIFF_PRICE[p.tariff]||0}</span></div>`).join('')
+    || `<div style="padding:10px 0">
+         <div style="color:var(--text3);font-size:13px;margin-bottom:8px">У клиента пока нет объектов. Тариф и счета привязаны к объекту — добавьте дом или квартиру, чтобы выставлять счета.</div>
+         <button class="btn-primary" style="font-size:13px;padding:8px 14px" onclick="addPropertyForClient('${id}')">➕ Добавить объект клиенту</button>
+       </div>`;
   const reportsHtml = reports.slice(0,5).map(r => {
     const cond = { ok:'✅', warning:'⚠️', issue:'❌' };
     const p = State.properties[r.propId] || {};
@@ -1693,18 +1713,31 @@ function addTgLog(type, msg) {
 }
 
 // ── BILLING ──────────────────────────────────────────────────
+function setBillingFilter(filter) {
+  State.billingFilter = (State.billingFilter === filter && filter !== 'all') ? 'all' : filter;
+  renderBilling();
+}
+
 function renderBilling() {
   markOverdueInvoices();
-  const list = Object.values(State.invoices).sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+  const all = Object.values(State.invoices).sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
   const thisPeriod = ymLabel();
 
-  const paidMonth = list.filter(i => i.status === 'paid' && i.period === thisPeriod).reduce((s,i)=>s+(i.amount||0),0);
-  const pending   = list.filter(i => i.status === 'pending').reduce((s,i)=>s+(i.amount||0),0);
-  const overdue   = list.filter(i => i.status === 'overdue').reduce((s,i)=>s+(i.amount||0),0);
+  const paidMonth = all.filter(i => i.status === 'paid' && i.period === thisPeriod).reduce((s,i)=>s+(i.amount||0),0);
+  const pending   = all.filter(i => i.status === 'pending').reduce((s,i)=>s+(i.amount||0),0);
+  const overdue   = all.filter(i => i.status === 'overdue').reduce((s,i)=>s+(i.amount||0),0);
 
   setText('billMonth',   `€${paidMonth}`);
   setText('billPending', `€${pending}`);
   setText('billOverdue', `€${overdue}`);
+
+  // Filter list by selected KPI (default: all)
+  const flt = State.billingFilter || 'all';
+  const list = (flt === 'all')
+    ? all
+    : (flt === 'paidMonth')
+      ? all.filter(i => i.status === 'paid' && i.period === thisPeriod)
+      : all.filter(i => i.status === flt);
 
   const statusLabel = { paid:'✓ Оплачен', pending:'⏳ Ожидает', overdue:'⚠ Просрочен' };
   const statusClass = { paid:'inv-paid', pending:'inv-pending', overdue:'inv-overdue' };
@@ -1723,14 +1756,20 @@ function renderBilling() {
         <button class="client-link-btn" onclick="setInvoiceStatus('${inv.id}','${nextAction[inv.status]||'paid'}')">${actionLabel[inv.status]||'Оплачен'}</button>
         <button class="client-link-btn" onclick="downloadInvoicePdf('${inv.id}')">📄 PDF</button>
       </div>
-    </div>`).join('') || '<div style="color:var(--text3);font-size:13px;padding:16px">Нет счетов</div>';
+    </div>`).join('') || `<div style="color:var(--text3);font-size:13px;padding:16px;text-align:center">${flt === 'all' ? 'Нет счетов' : 'Нет счетов в этом фильтре. <a href="#" onclick="setBillingFilter(\'all\');return false" style="color:var(--accent2)">Показать все</a>'}</div>`;
 
-  // Bar chart — last 6 months of actually-paid revenue, fallback to projection
-  renderRevenueChart(list);
+  // Reflect active filter on KPI cards
+  document.querySelectorAll('#page-billing .kpi-card').forEach(c => c.classList.remove('kpi-active'));
+  if (flt === 'paidMonth' || flt === 'all' && !State.billingFilter) document.querySelectorAll('#page-billing .kpi-card')[0]?.classList.toggle('kpi-active', flt !== 'all');
+  if (flt === 'pending') document.querySelectorAll('#page-billing .kpi-card')[1]?.classList.add('kpi-active');
+  if (flt === 'overdue') document.querySelectorAll('#page-billing .kpi-card')[2]?.classList.add('kpi-active');
+
+  // Bar chart — last 6 months of actually-paid revenue (always full data, not filtered)
+  renderRevenueChart(all);
 
   // Debtors: clients with overdue/pending invoices, grouped by client
   const owing = {};
-  list.filter(i => i.status === 'overdue' || i.status === 'pending').forEach(i => {
+  all.filter(i => i.status === 'overdue' || i.status === 'pending').forEach(i => {
     if (!owing[i.clientId]) owing[i.clientId] = { sum: 0, count: 0, overdue: false };
     owing[i.clientId].sum += i.amount || 0;
     owing[i.clientId].count++;
