@@ -123,8 +123,8 @@
     footer { padding: 50px 0 30px; border-top: 1px solid var(--border); text-align: center; color: var(--text3); font-size: 13px; }
     footer a { margin: 0 8px; }
 
-    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120%); background: var(--surface); border: 1px solid var(--accent); padding: 14px 22px; border-radius: 12px; font-size: 14px; transition: transform .3s; z-index: 100; box-shadow: var(--shadow); }
-    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120%); background: var(--surface); border: 1px solid var(--accent); padding: 14px 22px; border-radius: 12px; font-size: 14px; transition: transform .3s, opacity .3s; z-index: 100; opacity: 0; pointer-events: none; }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
   </style>
 </head>
 <body>
@@ -488,18 +488,28 @@ document.getElementById('leadForm').addEventListener('submit', async (e) => {
     createdAt: Date.now(),
     source: 'landing',
   };
+
+  // Timeout helper — Firebase can hang if connection is bad
+  function withTimeout(promise, ms) {
+    return Promise.race([
+      promise,
+      new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout')), ms))
+    ]);
+  }
+
   try {
-    // Anonymous auth is REQUIRED — rules need auth != null
-    if (window.Auth && window.Auth.ensureAnonAuth) {
-      const user = await window.Auth.ensureAnonAuth();
-      if (!user) throw new Error('Auth failed');
+    // Anonymous auth — required by database rules (auth != null)
+    try {
+      await withTimeout(window.Auth.ensureAnonAuth(), 8000);
+    } catch (authErr) {
+      console.warn('Auth failed, trying write anyway:', authErr.message);
     }
-    await DB.set(`leads/${id}`, lead);
+    await withTimeout(DB.set(`leads/${id}`, lead), 10000);
     showToast(I18N[LANG].sent);
     e.target.reset();
   } catch (err) {
     console.error('Lead submit error:', err);
-    showToast(I18N[LANG].error + ' (' + (err.message || err.code || '') + ')');
+    showToast(I18N[LANG].error);
   } finally {
     btn.disabled = false; btn.textContent = origText;
   }
