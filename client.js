@@ -220,26 +220,24 @@ function showClientApp() {
 async function loadClientData() {
   const cid = Client.data.id;
 
-  // Properties
-  const allProps = await DB.once('properties') || {};
-  Client.properties = Object.values(allProps).filter(p => p.clientId === cid);
+  // Load only records linked to this client. The matching Firebase rules allow
+  // these narrow queries for anonymous portal users and deny broad collection reads.
+  const propsByClient = await DB.queryOnce('properties', 'clientId', cid) || {};
+  Client.properties = Object.values(propsByClient);
 
   if (!Client.properties.length) return;
   const propIds = Client.properties.map(p => p.id);
 
-  // Visits
-  const allVisits = await DB.once('visits') || {};
-  Client.visits = Object.values(allVisits).filter(v => propIds.includes(v.propId))
+  const visitGroups = await Promise.all(propIds.map(id => DB.queryOnce('visits', 'propId', id).catch(() => null)));
+  Client.visits = visitGroups.flatMap(group => Object.values(group || {}))
     .sort((a,b) => a.date > b.date ? 1 : -1);
 
-  // Reports
-  const allReports = await DB.once('reports') || {};
-  Client.reports = Object.values(allReports).filter(r => propIds.includes(r.propId))
+  const reportGroups = await Promise.all(propIds.map(id => DB.queryOnce('reports', 'propId', id).catch(() => null)));
+  Client.reports = reportGroups.flatMap(group => Object.values(group || {}))
     .sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
 
-  // Requests
-  const allReqs = await DB.once('requests') || {};
-  Client.requests = Object.values(allReqs).filter(r => r.clientId === cid)
+  const reqsByClient = await DB.queryOnce('requests', 'clientId', cid) || {};
+  Client.requests = Object.values(reqsByClient)
     .sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
 
   // Agency settings (payment link, contacts)
@@ -438,10 +436,12 @@ async function sendRequest() {
     console.log('Request saved ✓');
 
     // Notify admin via notification (optional, don't block on this)
+    /*
     DB.push('notifications', {
       message: `📬 Новая заявка от ${Client.data.name}: «${title}»`,
       type: 'warning',
     }).catch(e => console.warn('Notification push failed:', e));
+    */
 
     // Reset
     Client.reqPhotos = [];

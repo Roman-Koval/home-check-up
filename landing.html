@@ -49,14 +49,21 @@
     .hero h1 .accent { color: var(--accent2); }
     .hero p.lead { font-size: 18px; color: var(--text2); margin-bottom: 32px; max-width: 540px; }
     .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
-    .hero-visual { aspect-ratio: 4/3; background: linear-gradient(135deg, var(--bg2), var(--surface)); border: 1px solid var(--border); border-radius: 24px; display: flex; align-items: center; justify-content: center; font-size: 110px; box-shadow: 0 30px 60px rgba(0,0,0,0.4); }
+    .hero-visual { aspect-ratio: 4/3; background:
+      linear-gradient(180deg, rgba(7,15,30,0.10), rgba(7,15,30,0.65)),
+      url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80") center/cover;
+      border: 1px solid var(--border); border-radius: 24px; display: flex; align-items: flex-end; justify-content: stretch; padding: 18px; box-shadow: 0 30px 60px rgba(0,0,0,0.4); overflow: hidden; }
+    .hero-visual-card { width: 100%; background: rgba(7,15,30,0.78); border: 1px solid rgba(255,255,255,0.16); border-radius: 16px; padding: 16px; backdrop-filter: blur(12px); display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .hero-visual-card b { display:block; font-size: 18px; color: var(--accent2); line-height: 1.1; }
+    .hero-visual-card span { display:block; margin-top: 4px; color: var(--text2); font-size: 12px; line-height: 1.35; }
     .hero-stats { display: flex; gap: 28px; margin-top: 40px; flex-wrap: wrap; }
     .hero-stat strong { display: block; font-size: 28px; color: var(--accent2); font-family: 'Playfair Display', serif; }
     .hero-stat span { font-size: 13px; color: var(--text3); }
     @media (max-width: 800px) {
       .hero { padding: 50px 0; }
       .hero-grid { grid-template-columns: 1fr; gap: 30px; }
-      .hero-visual { order: -1; aspect-ratio: 16/10; font-size: 80px; }
+      .hero-visual { order: -1; aspect-ratio: 16/10; }
+      .hero-visual-card { grid-template-columns: 1fr; }
     }
     /* Mobile header: brand stays on top row, actions wrap to next */
     @media (max-width: 640px) {
@@ -161,7 +168,13 @@
         <div class="hero-stat"><strong>€50<small style="font-size:14px">/мес</small></strong><span data-i="statFrom">Базовый тариф</span></div>
       </div>
     </div>
-    <div class="hero-visual">🏖️</div>
+    <div class="hero-visual" role="img" aria-label="Cyprus property terrace">
+      <div class="hero-visual-card">
+        <div><b>24h</b><span>first response target</span></div>
+        <div><b>Photo</b><span>reports after visits</span></div>
+        <div><b>5 langs</b><span>owner portal support</span></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -232,6 +245,7 @@
     <h2 class="section-title" style="text-align:center" data-i="contactTitle">Расскажите о вашем объекте</h2>
     <p class="section-sub" style="text-align:center;margin:0 auto 40px" data-i="contactSub">Свяжемся в течение 24 часов, обсудим детали и предложим оптимальный план.</p>
     <form class="form-card" id="leadForm">
+      <input type="text" name="company" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0" aria-hidden="true"/>
       <div class="form-row">
         <div class="form-field"><label data-i="fName">Имя</label><input type="text" name="name" required/></div>
         <div class="form-field"><label data-i="fPhone">Телефон</label><input type="tel" name="phone" required placeholder="+357 …"/></div>
@@ -479,6 +493,19 @@ function showToast(msg) {
 document.getElementById('leadForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
+  if (data.company) return;
+  const lastSent = Number(localStorage.getItem('cg-lead-last-sent') || 0);
+  if (Date.now() - lastSent < 60000) {
+    showToast(I18N[LANG].error);
+    return;
+  }
+  data.name = String(data.name || '').trim().slice(0, 120);
+  data.phone = String(data.phone || '').trim().slice(0, 60);
+  data.email = String(data.email || '').trim().slice(0, 120);
+  data.city = String(data.city || '').trim().slice(0, 80);
+  data.tariff = String(data.tariff || '').trim().slice(0, 40);
+  data.message = String(data.message || '').trim().slice(0, 2000);
+  delete data.company;
   const id = 'lead_' + Date.now();
   const lead = {
     id, ...data, lang: LANG, status: 'new',
@@ -488,6 +515,7 @@ document.getElementById('leadForm').addEventListener('submit', async (e) => {
   try {
     if (window.Auth && window.Auth.ensureAnonAuth) await window.Auth.ensureAnonAuth();
     await DB.set(`leads/${id}`, lead);
+    try { localStorage.setItem('cg-lead-last-sent', String(Date.now())); } catch {}
     showToast(I18N[LANG].sent);
     e.target.reset();
   } catch (err) {
