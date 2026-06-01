@@ -286,9 +286,14 @@ function renderOverview() {
   if (payBlock) {
     const link = Client.agency && Client.agency.payLink;
     if (link) {
-      const payLabels = { ru:'💳 Оплатить обслуживание', en:'💳 Pay for service', de:'💳 Service bezahlen', fr:'💳 Payer le service', tr:'💳 Hizmeti öde' };
+      // Calculate total monthly from all client's properties
+      const totalMonthly = Client.properties.reduce((sum, p) => sum + (TARIFF_PRICE[p.tariff] || 0), 0);
+      // Append amount to payment link (works with Revolut, Stripe, etc.)
+      const separator = link.includes('?') ? '&' : '?';
+      const payUrl = totalMonthly > 0 ? `${link}${separator}amount=${totalMonthly}` : link;
+      const payLabels = { ru:`💳 Оплатить €${totalMonthly}`, en:`💳 Pay €${totalMonthly}`, de:`💳 €${totalMonthly} bezahlen`, fr:`💳 Payer €${totalMonthly}`, tr:`💳 €${totalMonthly} öde` };
       payBlock.style.display = 'block';
-      payBlock.innerHTML = `<a href="${link}" target="_blank" rel="noopener" style="display:block;text-align:center;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#8a6020);color:#000;font-weight:600;text-decoration:none">${payLabels[LANG]||payLabels.ru}</a>`;
+      payBlock.innerHTML = `<a href="${payUrl}" target="_blank" rel="noopener" style="display:block;text-align:center;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#8a6020);color:#000;font-weight:600;text-decoration:none">${payLabels[LANG]||payLabels.ru}</a>`;
     } else {
       payBlock.style.display = 'none';
     }
