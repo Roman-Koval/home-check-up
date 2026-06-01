@@ -407,7 +407,7 @@ async function loadWeather() {
     if (code <= 99) return '⛈️';
     return '☀️';
   };
-  try {
+try {
     const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=34.707&longitude=33.022&current=temperature_2m,weather_code');
     const data = await r.json();
     const cur = data.current;
