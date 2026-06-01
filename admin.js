@@ -407,15 +407,29 @@ async function loadWeather() {
     if (code <= 99) return '⛈️';
     return '☀️';
   };
-try {
-    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=34.707&longitude=33.022&current=temperature_2m,weather_code');
-    const data = await r.json();
-    const cur = data.current;
-    if (cur) {
-      tempEl.textContent = `${Math.round(cur.temperature_2m)}°C`;
-      iconEl.textContent = wxIcon(cur.weather_code);
-    }
-  } catch(e) { /* keep placeholder */ }
+async function loadWeather(lat, lon, city) {
+    try {
+      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`);
+      const data = await r.json();
+      const cur = data.current;
+      if (cur) {
+        tempEl.textContent = `${Math.round(cur.temperature_2m)}°C`;
+        iconEl.textContent = wxIcon(cur.weather_code);
+        const cityEl = document.getElementById('heroWxCity');
+        if (cityEl) cityEl.textContent = city;
+      }
+    } catch(e) { /* keep placeholder */ }
+  }
+  // Try GPS first, fallback to Limassol
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => loadWeather(pos.coords.latitude, pos.coords.longitude, '📍 Моё место'),
+      () => loadWeather(34.707, 33.022, 'Лимассол'),
+      { timeout: 5000 }
+    );
+  } else {
+    loadWeather(34.707, 33.022, 'Лимассол');
+  }
 }
 
 // ── KPIs ─────────────────────────────────────────────────────
