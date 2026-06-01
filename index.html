@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <meta name="theme-color" content="#070f1e"/>
@@ -203,9 +204,9 @@
           <button class="tg-toggle-btn" id="tgToggle">Подключить</button>
         </div>
         <div class="settings-group">
-          <div class="settings-label">Токен бота</div>
-          <div class="input-row"><input type="password" class="settings-input" id="tgToken" placeholder="1234567890:AAF…"/><button class="btn-secondary" id="tgSaveToken">Сохранить</button></div>
-          <div style="margin-top:8px;font-size:12px;color:var(--text3)">@BotFather → /newbot → скопируйте токен</div>
+          <div class="settings-label">Статус бота</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:8px">Бот настроен на сервере (Railway). Токен хранится безопасно в переменных сервера.</div>
+          <button class="btn-secondary" id="tgCheckHealth" style="font-size:13px">🔍 Проверить связь</button>
         </div>
         <div class="settings-group">
           <div class="settings-label">Автоуведомления</div>
@@ -226,12 +227,12 @@
           <div class="log-entries" id="tgLog"><div class="log-entry"><span class="log-time">—</span><span class="log-msg info">Ожидание…</span></div></div>
         </div>
         <div class="tg-guide">
-          <div class="settings-label">Как развернуть бота</div>
+          <div class="settings-label">Настройка бота</div>
           <div class="guide-steps">
-            <div class="guide-step"><span class="guide-num">1</span><div><b>Создайте бота</b> — @BotFather → /newbot</div></div>
-            <div class="guide-step"><span class="guide-num">2</span><div><b>Вставьте токен</b> выше и сохраните в Firebase</div></div>
-            <div class="guide-step"><span class="guide-num">3</span><div><b>Задеплойте</b> <code>bot/index.js</code> на Railway/Render (бесплатно, инструкция в <code>bot/README.md</code>)</div></div>
-            <div class="guide-step"><span class="guide-num">4</span><div><b>Клиент пишет</b> /start — бот записывает chat_id автоматически</div></div>
+            <div class="guide-step"><span class="guide-num">1</span><div><b>Бот работает</b> на Railway (home-check-up-production.up.railway.app)</div></div>
+            <div class="guide-step"><span class="guide-num">2</span><div><b>Токен</b> хранится в переменных Railway (BOT_TOKEN), не в базе данных</div></div>
+            <div class="guide-step"><span class="guide-num">3</span><div><b>Клиент пишет</b> /start — бот записывает chat_id автоматически</div></div>
+            <div class="guide-step"><span class="guide-num">4</span><div><b>Проверка:</b> /health, /testreq, /today — команды в боте</div></div>
           </div>
         </div>
       </section>

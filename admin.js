@@ -267,8 +267,8 @@ function bindAppEvents() {
   });
 
   // Telegram
-  document.getElementById('tgSaveToken').addEventListener('click', saveTgToken);
-  document.getElementById('tgToggle').addEventListener('click', toggleTg);
+  document.getElementById('tgCheckHealth').addEventListener('click', checkBotHealth);
+  document.getElementById('tgToggle').addEventListener('click', checkBotHealth);
   document.getElementById('tgTestSend').addEventListener('click', sendTgTest);
   document.getElementById('saveTgBtn').addEventListener('click', saveTgSettings);
 
@@ -339,9 +339,8 @@ function bindAppEvents() {
         if (rm) rm.style.display = 'inline-block';
       }
     }
-    if (s.telegram && s.telegram.token) {
-      document.getElementById('tgToken').value = s.telegram.token;
-      if (s.telegram.botActive) activateTgUI(s.telegram.token);
+    if (s.telegram) {
+      if (s.telegram.botActive) activateTgUI();
     }
   });
 }
@@ -1572,28 +1571,31 @@ async function pushNotification(message, type = 'info') {
 }
 
 // ── TELEGRAM ─────────────────────────────────────────────────
-function activateTgUI(token) {
+function activateTgUI() {
   document.getElementById('tgDot').classList.add('online');
   document.getElementById('tgStatusLabel').textContent = 'Бот подключён';
-  document.getElementById('tgStatusSub').textContent = 'Токен сохранён · Активен';
-  document.getElementById('tgToggle').textContent = 'Отключить';
+  document.getElementById('tgStatusSub').textContent = 'Сервер активен';
+  document.getElementById('tgToggle').textContent = 'Активен';
 }
 
-async function saveTgToken() {
-  const token = document.getElementById('tgToken').value.trim();
-  if (!token) { showToast('Введите токен'); return; }
-  // Verify token via Telegram
+// Check bot health via HTTP endpoint
+async function checkBotHealth() {
+  const apiUrl = (State.settings?.agency?.aiApiUrl || '').replace(/\/+$/, '');
+  if (!apiUrl) { showToast('Укажите URL AI-сервера в Настройках'); return; }
   try {
-    const r = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    const r = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(5000) });
     const data = await r.json();
-    if (!data.ok) throw new Error('Invalid token');
-    await DB.update('settings/telegram', { token, botActive: true, botName: data.result.username });
-    activateTgUI(token);
-    showToast(`✅ Бот @${data.result.username} подключён!`);
-    addTgLog('success', `✓ Бот @${data.result.username} авторизован`);
-  } catch(e) {
-    showToast('❌ Неверный токен бота');
-    addTgLog('error', '✗ Ошибка авторизации');
+    if (data.ok) {
+      activateTgUI();
+      addTgLog('success', `✓ Бот онлайн: ${data.version || '—'}`);
+      showToast(`✅ Бот онлайн (${data.version})`);
+    } else throw new Error('Not OK');
+  } catch (e) {
+    document.getElementById('tgDot').classList.remove('online');
+    document.getElementById('tgStatusLabel').textContent = 'Не отвечает';
+    document.getElementById('tgStatusSub').textContent = 'Проверьте Railway';
+    addTgLog('error', '✗ Бот не отвечает');
+    showToast('⚠️ Бот не отвечает');
   }
 }
 

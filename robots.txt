@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /landing.html
-Disallow: /
-
+Disallow: /index.html
+Disallow: /client.html
+Disallow: /admin
 Sitemap: https://cheery-creponne-dff88d.netlify.app/sitemap.xml

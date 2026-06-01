@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>CyprusGuard — Присматриваем за вашим домом на Кипре</title>
@@ -49,14 +50,16 @@
     .hero h1 .accent { color: var(--accent2); }
     .hero p.lead { font-size: 18px; color: var(--text2); margin-bottom: 32px; max-width: 540px; }
     .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
-    .hero-visual { aspect-ratio: 4/3; background: linear-gradient(135deg, var(--bg2), var(--surface)); border: 1px solid var(--border); border-radius: 24px; display: flex; align-items: center; justify-content: center; font-size: 110px; box-shadow: 0 30px 60px rgba(0,0,0,0.4); }
+    .hero-visual { aspect-ratio: 4/3; border-radius: 24px; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.4); position: relative; }
+    .hero-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .hero-visual::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(7,15,30,0.2), transparent 60%); }
     .hero-stats { display: flex; gap: 28px; margin-top: 40px; flex-wrap: wrap; }
     .hero-stat strong { display: block; font-size: 28px; color: var(--accent2); font-family: 'Playfair Display', serif; }
     .hero-stat span { font-size: 13px; color: var(--text3); }
     @media (max-width: 800px) {
       .hero { padding: 50px 0; }
       .hero-grid { grid-template-columns: 1fr; gap: 30px; }
-      .hero-visual { order: -1; aspect-ratio: 16/10; font-size: 80px; }
+      .hero-visual { order: -1; aspect-ratio: 16/10; }
     }
     /* Mobile header: brand stays on top row, actions wrap to next */
     @media (max-width: 640px) {
@@ -100,6 +103,16 @@
     .tariff-features li { padding: 9px 0 9px 26px; position: relative; font-size: 14px; color: var(--text2); border-bottom: 1px solid var(--border); }
     .tariff-features li:last-child { border-bottom: none; }
     .tariff-features li::before { content: '✓'; position: absolute; left: 0; color: var(--accent2); font-weight: 700; }
+
+    /* GALLERY */
+    .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .gallery-card { border-radius: 16px; overflow: hidden; position: relative; aspect-ratio: 4/3; }
+    .gallery-card img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s ease; }
+    .gallery-card:hover img { transform: scale(1.04); }
+    .gallery-label { position: absolute; bottom: 0; left: 0; right: 0; padding: 14px 16px; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: #fff; font-size: 14px; font-weight: 500; }
+    /* GDPR */
+    .gdpr-row { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; font-size: 12px; color: var(--text3); }
+    .gdpr-row input { margin-top: 3px; accent-color: var(--accent); }
 
     /* WHY */
     .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; }
@@ -161,7 +174,7 @@
         <div class="hero-stat"><strong>€50<small style="font-size:14px">/мес</small></strong><span data-i="statFrom">Базовый тариф</span></div>
       </div>
     </div>
-    <div class="hero-visual">🏖️</div>
+    <div class="hero-visual"><img src="img/hero-kitchen.webp" alt="Cyprus property interior" loading="eager"/></div>
   </div>
 </section>
 
@@ -175,6 +188,20 @@
       <div class="how-step"><div class="how-num">02</div><h3 data-i="step2Title">Визиты</h3><p data-i="step2Desc">Наш инспектор регулярно посещает ваш дом по графику.</p></div>
       <div class="how-step"><div class="how-num">03</div><h3 data-i="step3Title">Фото-отчёт</h3><p data-i="step3Desc">После каждого визита — отчёт с фото в вашем личном кабинете и Telegram.</p></div>
       <div class="how-step"><div class="how-num">04</div><h3 data-i="step4Title">Реагирование</h3><p data-i="step4Desc">При проблеме — связываемся, устраняем, информируем.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="gallery">
+  <div class="container">
+    <div class="section-eyebrow" data-i="galleryEyebrow">Наши объекты</div>
+    <h2 class="section-title" data-i="galleryTitle">Как выглядит наш осмотр</h2>
+    <p class="section-sub" data-i="gallerySub">Мы проверяем каждую комнату и фиксируем состояние объекта фото-отчётом.</p>
+    <div class="gallery-grid">
+      <div class="gallery-card"><img src="img/hero-kitchen.webp" alt="Kitchen" loading="lazy"/><div class="gallery-label" data-i="galKitchen">Кухня и гостиная</div></div>
+      <div class="gallery-card"><img src="img/room-bedroom.webp" alt="Bedroom" loading="lazy"/><div class="gallery-label" data-i="galBedroom">Спальня</div></div>
+      <div class="gallery-card"><img src="img/room-bathroom.webp" alt="Bathroom" loading="lazy"/><div class="gallery-label" data-i="galBathroom">Ванная комната</div></div>
+      <div class="gallery-card"><img src="img/room-living.webp" alt="Living room" loading="lazy"/><div class="gallery-label" data-i="galLiving">Студия / Апартаменты</div></div>
     </div>
   </div>
 </section>
@@ -257,6 +284,7 @@
         </select>
       </div>
       <div class="form-field" style="margin-top:14px"><label data-i="fMessage">Комментарий</label><textarea name="message" data-i-ph="fMessagePh" placeholder="Тип недвижимости, адрес, особые пожелания…"></textarea></div>
+      <div class="gdpr-row"><input type="checkbox" id="gdprConsent" required/><label for="gdprConsent" data-i="gdprText">Я согласен на обработку персональных данных в соответствии с политикой конфиденциальности</label></div>
       <button type="submit" class="btn btn-primary form-submit" data-i="fSubmit">Отправить заявку</button>
     </form>
   </div>
@@ -301,7 +329,7 @@ const I18N = {
     contactEyebrow:'Оставить заявку', contactTitle:'Расскажите о вашем объекте', contactSub:'Свяжемся в течение 24 часов, обсудим детали и предложим оптимальный план.',
     fName:'Имя', fPhone:'Телефон', fEmail:'Email', fCity:'Город объекта', fTariff:'Интересующий тариф', fMessage:'Комментарий', fMessagePh:'Тип недвижимости, адрес, особые пожелания…', fSubmit:'Отправить заявку',
     footTagline:'Профессиональный присмотр за недвижимостью на Кипре', footPortal:'Войти в кабинет', footAdmin:'Админ-панель',
-    sent:'✅ Заявка отправлена! Свяжемся в течение 24 часов.', error:'⚠️ Ошибка отправки. Попробуйте ещё раз.',
+    galleryEyebrow:'Наши объекты', galleryTitle:'Как выглядит наш осмотр', gallerySub:'Мы проверяем каждую комнату и фиксируем состояние объекта фото-отчётом.', galKitchen:'Кухня и гостиная', galBedroom:'Спальня', galBathroom:'Ванная комната', galLiving:'Студия / Апартаменты', gdprText:'Я согласен на обработку персональных данных в соответствии с политикой конфиденциальности', sent:'✅ Заявка отправлена! Свяжемся в течение 24 часов.', error:'⚠️ Ошибка отправки. Попробуйте ещё раз.',
     features: {
       basic: ['2 визита в месяц','Фото-отчёт','Проветривание','Уведомления в Telegram'],
       standard: ['4 визита в месяц','Фото + видео','Полив растений','Проверка счетов','Уведомления в Telegram'],
@@ -334,7 +362,7 @@ const I18N = {
     contactEyebrow:'Get in touch', contactTitle:'Tell us about your property', contactSub:'We\u2019ll contact you within 24 hours to discuss details and suggest the best plan.',
     fName:'Name', fPhone:'Phone', fEmail:'Email', fCity:'Property city', fTariff:'Plan of interest', fMessage:'Comment', fMessagePh:'Property type, address, special requests…', fSubmit:'Send request',
     footTagline:'Professional property care in Cyprus', footPortal:'Open portal', footAdmin:'Admin panel',
-    sent:'✅ Request sent! We will contact you within 24 hours.', error:'⚠️ Send failed. Please try again.',
+    galleryEyebrow:'Our properties', galleryTitle:'What our inspections look like', gallerySub:'We check every room and document the property condition with a photo report.', galKitchen:'Kitchen & Living', galBedroom:'Bedroom', galBathroom:'Bathroom', galLiving:'Studio / Apartment', gdprText:'I consent to the processing of my personal data in accordance with the privacy policy', sent:'✅ Request sent! We will contact you within 24 hours.', error:'⚠️ Send failed. Please try again.',
     features: {
       basic: ['2 visits per month','Photo report','Ventilation','Telegram notifications'],
       standard: ['4 visits per month','Photo + video','Plant watering','Bill check','Telegram notifications'],
@@ -367,7 +395,7 @@ const I18N = {
     contactEyebrow:'Kontakt', contactTitle:'Erzählen Sie uns von Ihrer Immobilie', contactSub:'Wir melden uns innerhalb von 24 Stunden mit Details und dem passenden Plan.',
     fName:'Name', fPhone:'Telefon', fEmail:'E-Mail', fCity:'Stadt der Immobilie', fTariff:'Gewünschter Tarif', fMessage:'Anmerkung', fMessagePh:'Immobilientyp, Adresse, besondere Wünsche…', fSubmit:'Anfrage senden',
     footTagline:'Professionelle Immobilienbetreuung auf Zypern', footPortal:'Portal öffnen', footAdmin:'Admin-Panel',
-    sent:'✅ Anfrage gesendet! Wir melden uns binnen 24 Stunden.', error:'⚠️ Senden fehlgeschlagen. Bitte erneut versuchen.',
+    galleryEyebrow:'Unsere Objekte', galleryTitle:'So sieht unsere Inspektion aus', gallerySub:'Wir prüfen jeden Raum und dokumentieren den Zustand mit einem Fotobericht.', galKitchen:'Küche & Wohnzimmer', galBedroom:'Schlafzimmer', galBathroom:'Badezimmer', galLiving:'Studio / Apartment', gdprText:'Ich stimme der Verarbeitung meiner personenbezogenen Daten gemäß der Datenschutzrichtlinie zu', sent:'✅ Anfrage gesendet! Wir melden uns binnen 24 Stunden.', error:'⚠️ Senden fehlgeschlagen. Bitte erneut versuchen.',
     features: {
       basic: ['2 Besuche pro Monat','Fotobericht','Lüftung','Telegram-Benachrichtigungen'],
       standard: ['4 Besuche pro Monat','Foto + Video','Pflanzenbewässerung','Rechnungsprüfung','Telegram-Benachrichtigungen'],
@@ -400,7 +428,7 @@ const I18N = {
     contactEyebrow:'Contact', contactTitle:'Parlez-nous de votre bien', contactSub:'Nous vous contactons sous 24 heures pour discuter et proposer le bon forfait.',
     fName:'Nom', fPhone:'Téléphone', fEmail:'E-mail', fCity:'Ville du bien', fTariff:'Forfait souhaité', fMessage:'Commentaire', fMessagePh:'Type de bien, adresse, demandes spéciales…', fSubmit:'Envoyer la demande',
     footTagline:'Gestion professionnelle de biens à Chypre', footPortal:'Ouvrir le portail', footAdmin:'Panneau admin',
-    sent:'✅ Demande envoyée ! Nous vous contactons sous 24 heures.', error:'⚠️ Échec d\u2019envoi. Réessayez.',
+    galleryEyebrow:'Nos biens', galleryTitle:'À quoi ressemble notre inspection', gallerySub:'Nous vérifions chaque pièce et documentons l\'état du bien par un rapport photo.', galKitchen:'Cuisine & Salon', galBedroom:'Chambre', galBathroom:'Salle de bain', galLiving:'Studio / Appartement', gdprText:'J\'accepte le traitement de mes données personnelles conformément à la politique de confidentialité', sent:'✅ Demande envoyée ! Nous vous contactons sous 24 heures.', error:'⚠️ Échec d\u2019envoi. Réessayez.',
     features: {
       basic: ['2 visites par mois','Rapport photo','Aération','Notifications Telegram'],
       standard: ['4 visites par mois','Photo + vidéo','Arrosage des plantes','Vérification des factures','Notifications Telegram'],
@@ -433,7 +461,7 @@ const I18N = {
     contactEyebrow:'İletişim', contactTitle:'Mülkünüzden bahsedin', contactSub:'24 saat içinde sizi arar, detayları konuşur ve en uygun planı öneririz.',
     fName:'Ad', fPhone:'Telefon', fEmail:'E-posta', fCity:'Mülk şehri', fTariff:'İlgilendiğiniz tarife', fMessage:'Açıklama', fMessagePh:'Mülk türü, adres, özel istekler…', fSubmit:'Talebi gönder',
     footTagline:'Kıbrıs\u2019ta profesyonel emlak bakım hizmeti', footPortal:'Portala git', footAdmin:'Yönetim paneli',
-    sent:'✅ Talep gönderildi! 24 saat içinde sizi arayacağız.', error:'⚠️ Gönderim başarısız. Lütfen tekrar deneyin.',
+    galleryEyebrow:'Mülklerimiz', galleryTitle:'Denetimlerimiz nasıl görünür', gallerySub:'Her odayı kontrol eder ve mülkün durumunu fotoğraflı raporla belgeleriz.', galKitchen:'Mutfak & Oturma Odası', galBedroom:'Yatak Odası', galBathroom:'Banyo', galLiving:'Stüdyo / Daire', gdprText:'Kişisel verilerimin gizlilik politikasına uygun olarak işlenmesine onay veriyorum', sent:'✅ Talep gönderildi! 24 saat içinde sizi arayacağız.', error:'⚠️ Gönderim başarısız. Lütfen tekrar deneyin.',
     features: {
       basic: ['Ayda 2 ziyaret','Fotoğraflı rapor','Havalandırma','Telegram bildirimleri'],
       standard: ['Ayda 4 ziyaret','Fotoğraf + video','Bitki sulama','Fatura kontrolü','Telegram bildirimleri'],
