@@ -33,11 +33,9 @@ const storage = (typeof firebase.storage === 'function') ? firebase.storage() : 
 // user knows their data is pending, and keep key nodes synced for offline reads.
 window.CG_ONLINE = true;
 try {
-  if (auth.currentUser && auth.currentUser.email) {
-    ['properties','visits','reports','requests','clients','invoices','settings'].forEach(n => {
-      db.ref(n).keepSynced(true);
-    });
-  }
+  ['properties','visits','reports','requests','clients','invoices','settings'].forEach(n => {
+    db.ref(n).keepSynced(true);
+  });
 } catch (e) { /* keepSynced not critical */ }
 
 db.ref('.info/connected').on('value', (snap) => {
@@ -94,12 +92,6 @@ const DB = {
   remove: (path) => db.ref(path).remove(),
 
   once: (path) => db.ref(path).once('value').then(s => s.val()),
-
-  queryOnce: (path, child, value) => db.ref(path)
-    .orderByChild(child)
-    .equalTo(value)
-    .once('value')
-    .then(s => s.val()),
 
   on: (path, cb) => {
     const ref = db.ref(path);

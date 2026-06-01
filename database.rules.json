@@ -1,69 +1,14 @@
 {
   "rules": {
-    ".read": false,
-    ".write": false,
-
-    "clients": {
-      ".read": "auth != null && (auth.token.email != null || (query.orderByChild == 'accessToken' && query.equalTo != null))",
-      ".write": "auth != null && auth.token.email != null",
-      ".indexOn": ["tgChatId", "accessToken", "lang"]
-    },
-
-    "properties": {
-      ".read": "auth != null && (auth.token.email != null || (query.orderByChild == 'clientId' && query.equalTo != null))",
-      ".write": "auth != null && auth.token.email != null",
-      ".indexOn": ["clientId", "tariff", "status"]
-    },
-
-    "visits": {
-      ".read": "auth != null && (auth.token.email != null || (query.orderByChild == 'propId' && query.equalTo != null))",
-      ".write": "auth != null && auth.token.email != null",
-      ".indexOn": ["date", "propId", "status"]
-    },
-
-    "reports": {
-      ".read": "auth != null && (auth.token.email != null || (query.orderByChild == 'propId' && query.equalTo != null))",
-      "$reportId": {
-        ".write": "auth != null && (auth.token.email != null || (data.exists() && newData.child('rating').isNumber() && newData.child('rating').val() >= 1 && newData.child('rating').val() <= 5))"
-      },
-      ".indexOn": ["createdAt", "propId", "visitId", "clientId"]
-    },
-
-    "requests": {
-      ".read": "auth != null && (auth.token.email != null || (query.orderByChild == 'clientId' && query.equalTo != null))",
-      "$requestId": {
-        ".write": "auth != null && (auth.token.email != null || (!data.exists() && newData.child('clientId').isString() && newData.child('propId').isString() && newData.child('title').isString() && newData.child('status').val() == 'new'))"
-      },
-      ".indexOn": ["createdAt", "clientId", "propId", "status"]
-    },
-
-    "leads": {
-      ".read": "auth != null && auth.token.email != null",
-      "$leadId": {
-        ".write": "auth != null && (auth.token.email != null || (!data.exists() && newData.child('source').val() == 'landing' && newData.child('name').isString() && newData.child('phone').isString() && newData.child('status').val() == 'new'))"
-      },
-      ".indexOn": ["createdAt", "status", "lang", "city"]
-    },
-
-    "invoices": {
-      ".read": "auth != null && auth.token.email != null",
-      ".write": "auth != null && auth.token.email != null",
-      ".indexOn": ["createdAt", "clientId", "propId", "status", "period"]
-    },
-
-    "notifications": {
-      ".read": "auth != null && auth.token.email != null",
-      ".write": "auth != null && auth.token.email != null",
-      ".indexOn": ["createdAt"]
-    },
-
-    "settings": {
-      ".read": "auth != null && auth.token.email != null",
-      ".write": "auth != null && auth.token.email != null",
-      "agency": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.token.email != null"
-      }
-    }
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "reports":     { ".indexOn": ["createdAt", "propId", "visitId", "clientId"] },
+    "requests":    { ".indexOn": ["createdAt", "clientId", "propId", "status"] },
+    "visits":      { ".indexOn": ["date", "propId", "status"] },
+    "properties":  { ".indexOn": ["clientId", "tariff", "status"] },
+    "invoices":    { ".indexOn": ["createdAt", "clientId", "propId", "status", "period"] },
+    "clients":     { ".indexOn": ["tgChatId", "accessToken", "lang"] },
+    "leads":       { ".indexOn": ["createdAt", "status", "lang", "city"] },
+    "notifications": { ".indexOn": ["createdAt"] }
   }
 }
