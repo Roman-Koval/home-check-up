@@ -217,7 +217,7 @@
         <div class="tariff-desc" data-i="tariffBasicDesc">Для редко используемой недвижимости</div>
         <div class="tariff-price">€50<small>/мес</small></div>
         <ul class="tariff-features" data-features="basic"></ul>
-        <a href="#contact" class="btn btn-ghost" data-i="tariffChoose">Выбрать</a>
+        <a href="#contact" class="btn btn-ghost" data-i="tariffChoose" onclick="document.querySelector('[name=tariff]').value='basic'">Выбрать</a>
       </div>
       <div class="tariff-card featured">
         <div class="tariff-badge" data-i="tariffPopular">Популярный</div>
@@ -225,14 +225,14 @@
         <div class="tariff-desc" data-i="tariffStandardDesc">Оптимальный для большинства владельцев</div>
         <div class="tariff-price">€75<small>/мес</small></div>
         <ul class="tariff-features" data-features="standard"></ul>
-        <a href="#contact" class="btn btn-primary" data-i="tariffChoose">Выбрать</a>
+        <a href="#contact" class="btn btn-primary" data-i="tariffChoose" onclick="document.querySelector('[name=tariff]').value='standard'">Выбрать</a>
       </div>
       <div class="tariff-card">
         <div class="tariff-name" data-i="tariffPremium">Premium</div>
         <div class="tariff-desc" data-i="tariffPremiumDesc">Для дорогой недвижимости и вилл</div>
         <div class="tariff-price">€100<small>/мес</small></div>
         <ul class="tariff-features" data-features="premium"></ul>
-        <a href="#contact" class="btn btn-ghost" data-i="tariffChoose">Выбрать</a>
+        <a href="#contact" class="btn btn-ghost" data-i="tariffChoose" onclick="document.querySelector('[name=tariff]').value='premium'">Выбрать</a>
       </div>
     </div>
   </div>
