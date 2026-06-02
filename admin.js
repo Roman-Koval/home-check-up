@@ -406,6 +406,19 @@ async function loadWeather() {
     if (code <= 99) return '⛈️';
     return '☀️';
   };
+  var cities = [
+    [34.707,33.023,'Лимассол'],[34.772,32.430,'Пафос'],[34.923,33.623,'Ларнака'],
+    [35.186,33.382,'Никосия'],[35.126,33.942,'Фамагуста'],[35.341,33.319,'Кирения'],
+    [34.988,33.738,'Айя-Напа'],[34.680,32.636,'Полис'],[34.744,32.870,'Писсури']
+  ];
+  function nearest(lat, lon) {
+    var best = cities[0][2], dist = 999;
+    for (var i = 0; i < cities.length; i++) {
+      var d = Math.abs(cities[i][0]-lat) + Math.abs(cities[i][1]-lon);
+      if (d < dist) { dist = d; best = cities[i][2]; }
+    }
+    return best;
+  }
   function doLoad(lat, lon, city) {
     fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,weather_code')
       .then(function(r) { return r.json(); })
@@ -420,7 +433,7 @@ async function loadWeather() {
   }
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
-      function(pos) { doLoad(pos.coords.latitude, pos.coords.longitude, '📍 Моё место'); },
+      function(pos) { doLoad(pos.coords.latitude, pos.coords.longitude, nearest(pos.coords.latitude, pos.coords.longitude)); },
       function() { doLoad(34.707, 33.022, 'Лимассол'); },
       { timeout: 5000 }
     );
